@@ -1,0 +1,22 @@
+# 编译产物
+backend/target/
+frontend/dist/
+frontend/node_modules/
+
+# IDE
+.idea/
+*.iml
+
+# 环境
+*.log
+*.tmp
+
+# 存储目录
+storage/
+
+# zip
+*.zip
+
+# dot files
+.env
+.env.local
