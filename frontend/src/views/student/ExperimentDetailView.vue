@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppIcon from '../../components/AppIcon.vue'
 import {
@@ -83,6 +83,7 @@ async function loadData() {
     events.value = eventsRes.data || []
     files.value = filesRes.data || []
     await loadKeyframes()
+    await nextTick()
     renderChart()
   } catch (e: any) {
     loadError.value = e?.message || '加载失败'
