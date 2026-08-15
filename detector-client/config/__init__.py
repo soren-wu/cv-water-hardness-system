@@ -9,8 +9,8 @@ from dataclasses import dataclass, field
 @dataclass
 class ThresholdConfig:
     """HSV 颜色阈值模板，与后端 threshold_templates 表对应。"""
-    # 酒红色（红色跨越 0 度，用两段表示）
-    red_h_min: float = 330.0
+    # 酒红色（红色跨越 0 度，用两段表示；下界 315 覆盖偏紫酒红）
+    red_h_min: float = 315.0
     red_h_max: float = 25.0
     # 蓝紫色
     purple_h_min: float = 235.0

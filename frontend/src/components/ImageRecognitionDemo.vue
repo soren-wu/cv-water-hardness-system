@@ -102,8 +102,9 @@ function inRange(h: number, start: number, end: number) {
 }
 
 // 颜色阈值（与后端 threshold_templates「标准白光模板」保持一致）
+// 注：酒红下界从 330 放宽到 315，覆盖实际酒红色相（偏紫的 315~330° 酒红）
 const COLOR_THRESHOLD = {
-  redHMin: 330, redHMax: 25,     // 酒红色：330°~25°（跨 0 度）
+  redHMin: 315, redHMax: 25,     // 酒红色：315°~25°（跨 0 度）
   purpleHMin: 235, purpleHMax: 315, // 蓝紫色：235°~315°
   blueHMin: 185, blueHMax: 235,  // 纯蓝色：185°~235°
   minSaturation: 0.08,
@@ -699,7 +700,7 @@ async function saveResult() {
           </div>
           <canvas ref="histogramCanvas" width="560" height="110" class="histogram-canvas"></canvas>
           <div class="histogram-legend">
-            <span><i class="legend-dot red"></i>酒红 330-25°</span>
+            <span><i class="legend-dot red"></i>酒红 315-25°</span>
             <span><i class="legend-dot purple"></i>蓝紫 235-315°</span>
             <span><i class="legend-dot blue"></i>纯蓝 185-235°</span>
           </div>
