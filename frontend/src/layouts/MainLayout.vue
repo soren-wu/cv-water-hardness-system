@@ -2,6 +2,8 @@
 import { ref, computed, watchEffect } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { changePassword } from '../api/user'
+import { ElMessage } from 'element-plus'
 import AppIcon from '../components/AppIcon.vue'
 
 const router = useRouter()
@@ -74,6 +76,49 @@ function handleLogout() {
   router.push('/login')
 }
 
+// --- 修改密码 ---
+const showChangePwd = ref(false)
+const pwdForm = ref({ oldPassword: '', newPassword: '', confirmPassword: '' })
+const pwdSubmitting = ref(false)
+
+function openChangePwd() {
+  pwdForm.value = { oldPassword: '', newPassword: '', confirmPassword: '' }
+  showChangePwd.value = true
+}
+
+function closeChangePwd() {
+  if (pwdSubmitting.value) return
+  showChangePwd.value = false
+}
+
+async function submitChangePwd() {
+  const { oldPassword, newPassword, confirmPassword } = pwdForm.value
+  if (!oldPassword || !newPassword || !confirmPassword) {
+    ElMessage.warning('请填写完整信息')
+    return
+  }
+  if (newPassword.length < 6) {
+    ElMessage.warning('新密码至少 6 位')
+    return
+  }
+  if (newPassword !== confirmPassword) {
+    ElMessage.warning('两次输入的新密码不一致')
+    return
+  }
+  pwdSubmitting.value = true
+  try {
+    await changePassword({ oldPassword, newPassword })
+    ElMessage.success('密码修改成功，请重新登录')
+    showChangePwd.value = false
+    auth.logout()
+    router.push('/login')
+  } catch (e: any) {
+    ElMessage.error(e?.message || '密码修改失败')
+  } finally {
+    pwdSubmitting.value = false
+  }
+}
+
 // 初始化时拉取用户信息
 watchEffect(() => {
   if (auth.isLoggedIn && !auth.user) {
@@ -139,6 +184,10 @@ watchEffect(() => {
             <span class="user-name">{{ auth.user?.realName || auth.user?.username || '' }}</span>
             <span class="user-badge">{{ roleLabel }}</span>
           </div>
+          <button class="btn-logout" type="button" @click="openChangePwd" title="修改密码">
+            <AppIcon name="lock" :size="18" />
+            <span>修改密码</span>
+          </button>
           <button class="btn-logout" type="button" @click="handleLogout" title="退出登录">
             <AppIcon name="log-out" :size="18" />
             <span>退出</span>
@@ -150,6 +199,38 @@ watchEffect(() => {
       <main class="page-content">
         <RouterView />
       </main>
+    </div>
+
+    <!-- 修改密码弹窗 -->
+    <div v-if="showChangePwd" class="pwd-mask" @click.self="closeChangePwd">
+      <div class="pwd-dialog">
+        <div class="pwd-dialog-head">
+          <strong>修改密码</strong>
+          <button type="button" class="pwd-close" @click="closeChangePwd">
+            <AppIcon name="x" :size="18" />
+          </button>
+        </div>
+        <div class="pwd-dialog-body">
+          <label>
+            <span>原密码</span>
+            <input v-model="pwdForm.oldPassword" type="password" placeholder="请输入原密码" />
+          </label>
+          <label>
+            <span>新密码</span>
+            <input v-model="pwdForm.newPassword" type="password" placeholder="至少 6 位" />
+          </label>
+          <label>
+            <span>确认新密码</span>
+            <input v-model="pwdForm.confirmPassword" type="password" placeholder="再次输入新密码" />
+          </label>
+        </div>
+        <div class="pwd-dialog-foot">
+          <button type="button" class="pwd-cancel" @click="closeChangePwd">取消</button>
+          <button type="button" class="pwd-submit" :disabled="pwdSubmitting" @click="submitChangePwd">
+            {{ pwdSubmitting ? '提交中...' : '确认修改' }}
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -394,5 +475,104 @@ watchEffect(() => {
   flex: 1;
   overflow-y: auto;
   padding: 20px 24px;
+}
+
+/* ===== 修改密码弹窗 ===== */
+.pwd-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.45);
+}
+.pwd-dialog {
+  width: 360px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+.pwd-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #eef1f5;
+}
+.pwd-dialog-head strong {
+  font-size: 16px;
+  color: #1e2a3a;
+}
+.pwd-close {
+  border: none;
+  background: transparent;
+  color: #8a99ab;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+}
+.pwd-close:hover {
+  color: #e05a6b;
+}
+.pwd-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+}
+.pwd-dialog-body label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pwd-dialog-body span {
+  font-size: 13px;
+  color: #536176;
+}
+.pwd-dialog-body input {
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid #dde1e6;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #1e2a3a;
+  outline: none;
+}
+.pwd-dialog-body input:focus {
+  border-color: #3b6cb4;
+}
+.pwd-dialog-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid #eef1f5;
+}
+.pwd-cancel {
+  padding: 8px 16px;
+  border: 1px solid #dde1e6;
+  border-radius: 6px;
+  background: #fff;
+  color: #5a7a9a;
+  font-size: 13px;
+  cursor: pointer;
+}
+.pwd-submit {
+  padding: 8px 18px;
+  border: none;
+  border-radius: 6px;
+  background: #3b6cb4;
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+.pwd-submit:hover {
+  background: #2f5aa0;
+}
+.pwd-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 </style>

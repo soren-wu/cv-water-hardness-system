@@ -57,3 +57,11 @@ export function deleteUser(id: number) {
     `/api/users/${id}`
   )
 }
+
+/** 修改当前登录用户密码 */
+export function changePassword(data: { oldPassword: string; newPassword: string }) {
+  return http.put<any, { code: number }>(
+    '/api/users/change-password',
+    data
+  )
+}
