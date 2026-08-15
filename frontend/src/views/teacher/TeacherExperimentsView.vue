@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import AppIcon from '../../components/AppIcon.vue'
-import { getExperimentList, getExperimentDetail, type ExperimentRecord } from '../../api/experiment'
+import { getExperimentList, getExperimentDetail, exportExperiments, type ExperimentRecord } from '../../api/experiment'
 import { getReviewList, createReview, type ReviewRecord, type CreateReviewParams } from '../../api/review'
 
 const experiments = ref<ExperimentRecord[]>([])
@@ -105,6 +105,26 @@ function statusDot(status: string): string {
   return 'danger'
 }
 
+async function handleExport() {
+  try {
+    const res = await exportExperiments({
+      submitStatus: filterSubmit.value || undefined,
+    })
+    const blob = res.data as Blob
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `实验记录_${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    ElMessage.success('导出成功')
+  } catch {
+    ElMessage.error('导出失败')
+  }
+}
+
 onMounted(loadExperiments)
 </script>
 
@@ -128,6 +148,9 @@ onMounted(loadExperiments)
         </select>
         <button class="btn-refresh" type="button" @click="loadExperiments" title="刷新">
           <AppIcon name="refresh" :size="16" /> 刷新
+        </button>
+        <button class="btn-export" type="button" @click="handleExport">
+          <AppIcon name="download" :size="16" /> 导出 CSV
         </button>
       </div>
     </div>
@@ -294,6 +317,13 @@ onMounted(loadExperiments)
   color: #5a7a9a; font-size: 13px; cursor: pointer;
 }
 .btn-refresh:hover { border-color: #3b6cb4; color: #3b6cb4; }
+
+.btn-export {
+  display: flex; align-items: center; gap: 5px; padding: 7px 14px;
+  border: 1px solid #d4e6f5; border-radius: 6px; background: #eaf3fc;
+  color: #2272c9; font-size: 13px; cursor: pointer; font-weight: 500;
+}
+.btn-export:hover { background: #d9ecfc; border-color: #2272c9; }
 
 .panel { background: #fff; border-radius: 10px; border: 1px solid #e8ecf1; overflow: hidden; }
 .loading-wrap, .empty-wrap { text-align: center; padding: 48px 20px; color: #95a5b8; }

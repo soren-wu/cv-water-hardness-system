@@ -67,3 +67,8 @@ export function getExperimentFiles(experimentId: number) {
     `/api/experiments/${experimentId}/files`
   )
 }
+
+/** 导出实验记录 CSV，返回 Blob */
+export function exportExperiments(params?: { taskId?: number; submitStatus?: string }) {
+  return http.get('/api/experiments/export', { params, responseType: 'blob' })
+}

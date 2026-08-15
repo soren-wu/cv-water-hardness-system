@@ -8,12 +8,18 @@ import com.example.titration.module.experiment.entity.StateEvent;
 import com.example.titration.module.experiment.service.ExperimentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @RestController
@@ -97,5 +103,26 @@ public class ExperimentController {
     @Operation(summary = "获取实验状态事件")
     public R<List<StateEvent>> events(@PathVariable Long id) {
         return R.ok(experimentService.getEvents(id));
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "导出实验记录 CSV")
+    public void export(HttpServletResponse response,
+                       @RequestParam(required = false) Long taskId,
+                       @RequestParam(required = false) String submitStatus) throws IOException {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Long userId = (Long) auth.getPrincipal();
+        String role = auth.getAuthorities().toString();
+
+        String csv = experimentService.exportCsv(taskId, submitStatus, role, userId);
+
+        String filename = "experiments_" + LocalDateTime.now()
+                .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".csv";
+        String encoded = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
+
+        response.setContentType("text/csv;charset=UTF-8");
+        response.setHeader("Content-Disposition", "attachment;filename=\"" + encoded + "\";filename*=UTF-8''" + encoded);
+        response.getWriter().write(csv);
+        response.getWriter().flush();
     }
 }

@@ -14,6 +14,10 @@ http.interceptors.request.use((config) => {
 
 http.interceptors.response.use(
   (response) => {
+    // blob 响应（文件下载）直接返回，不做 JSON 剥离
+    if (response.config.responseType === 'blob') {
+      return response
+    }
     const body = response.data
     // 后端统一响应 { code, message, data }
     if (body && body.code !== 200) {
