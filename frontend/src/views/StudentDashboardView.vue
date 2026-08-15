@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
 import AppIcon from '../components/AppIcon.vue'
+import CameraRecognitionDemo from '../components/CameraRecognitionDemo.vue'
 import ExperimentPhoto from '../components/ExperimentPhoto.vue'
 import FlaskArtwork from '../components/FlaskArtwork.vue'
 import ImageRecognitionDemo from '../components/ImageRecognitionDemo.vue'
@@ -51,7 +52,7 @@ function showToast(message: string) {
 }
 
 function startExperiment() {
-  showToast('正在启动本地检测端，请稍候...')
+  document.querySelector('.camera-demo-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 function showDetails() {
@@ -85,6 +86,7 @@ onMounted(() => {
 
 <template>
   <div class="dashboard-content">
+    <CameraRecognitionDemo @saved="loadData" />
     <ImageRecognitionDemo @saved="loadData" />
     <VideoRecognitionDemo @saved="loadData" />
 
@@ -96,9 +98,9 @@ onMounted(() => {
           <h2>{{ currentTask?.title || 'EDTA 水硬度滴定实验' }}</h2>
           <button class="primary-button launch-button" type="button" @click="startExperiment">
             <AppIcon name="play" :size="18" />
-            启动检测端
+            开始实时检测
           </button>
-          <span>请先启动本地检测客户端进行实验</span>
+          <span>使用浏览器摄像头在线检测，无需安装客户端</span>
         </div>
       </article>
       <StatCard label="待完成任务" :value="tasks.length" hint="待完成实验" icon="clipboard" tone="orange" />

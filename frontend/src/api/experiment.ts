@@ -72,3 +72,20 @@ export function getExperimentFiles(experimentId: number) {
 export function exportExperiments(params?: { taskId?: number; submitStatus?: string }) {
   return http.get('/api/experiments/export', { params, responseType: 'blob' })
 }
+
+export interface ColorSamplePayload {
+  frameIndex: number
+  hue: number
+  saturation: number
+  brightness: number
+  confidence: number
+  stateLabel: string
+}
+
+/** 上传实验的逐帧 HSV 采样数据 */
+export function submitSamples(experimentId: number, samples: ColorSamplePayload[]) {
+  return http.post<any, { code: number; data: number }>(
+    `/api/experiments/${experimentId}/samples`,
+    samples
+  )
+}
