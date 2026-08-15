@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, nextTick } from 'vue'
 import { submitExperiment } from '../api/experiment'
 import { getTaskList } from '../api/task'
 import { ElMessage } from 'element-plus'
@@ -24,14 +24,6 @@ const imageUrl = ref('')
 const fileName = ref('')
 const roi = ref({ x: 0, y: 0, w: 100, h: 100 })
 const roiAction = ref<'move' | 'resize' | null>(null)
-let roiStart = {
-  mouseX: 0,
-  mouseY: 0,
-  x: 0,
-  y: 0,
-  w: 0,
-  h: 0,
-}
 const result = ref<AnalyzeResult>({
   status: '未识别',
   tone: 'muted',
@@ -44,6 +36,27 @@ const result = ref<AnalyzeResult>({
   blueRatio: 0,
   message: '请上传一张滴定实验图片，系统将自动分析画面中心区域的颜色。',
 })
+
+// 色相直方图数据（72 个 bin，每 5° 一个）
+const histogram = ref<number[]>([])
+// 光照补偿增益（灰度世界白平衡），展示用
+const balanceGain = ref<{ r: number; g: number; b: number } | null>(null)
+// 采样统计：有效格 / 排除反光格
+const samplingInfo = ref({ totalCells: 0, usedCells: 0 })
+
+// 图片缓存（避免实时分析时重复加载）
+let cachedImage: HTMLImageElement | null = null
+let cachedCanvas: HTMLCanvasElement | null = null
+let analyzeTimer: number | null = null
+
+let roiStart = {
+  mouseX: 0,
+  mouseY: 0,
+  x: 0,
+  y: 0,
+  w: 0,
+  h: 0,
+}
 
 const statusClass = computed(() => `recognition-status ${result.value.tone}`)
 const roiStyle = computed(() => ({
@@ -74,7 +87,6 @@ function rgbToHsv(r: number, g: number, b: number) {
     else if (max === gn) h = 60 * ((bn - rn) / delta + 2)
     else h = 60 * ((rn - gn) / delta + 4)
   }
-
   if (h < 0) h += 360
   const s = max === 0 ? 0 : delta / max
   return { h, s, v: max }
@@ -104,6 +116,40 @@ function isBlueLike(r: number, g: number, b: number, h: number, s: number) {
   return s >= 0.12 && hueMatches && (blueDominant || cyanBlue)
 }
 
+/**
+ * 灰度世界白平衡：统计 ROI 平均 RGB，计算增益消除整体偏色。
+ * 增益限制在 [0.5, 1.6] 避免过度校正。
+ */
+function computeWhiteBalance(data: Uint8ClampedArray): { r: number; g: number; b: number } | null {
+  let rSum = 0, gSum = 0, bSum = 0, n = 0
+  for (let i = 0; i < data.length; i += 4) {
+    rSum += data[i]
+    gSum += data[i + 1]
+    bSum += data[i + 2]
+    n++
+  }
+  if (n === 0) return null
+  const rAvg = rSum / n
+  const gAvg = gSum / n
+  const bAvg = bSum / n
+  const gray = (rAvg + gAvg + bAvg) / 3
+  if (gray === 0) return null
+
+  const clampGain = (g: number) => Math.min(1.6, Math.max(0.5, g))
+  return { r: clampGain(gray / rAvg), g: clampGain(gray / gAvg), b: clampGain(gray / bAvg) }
+}
+
+/** 分类颜色，返回主导颜色，同时更新直方图。 */
+function classifyPixel(r: number, g: number, b: number, h: number, s: number, bins: number[]) {
+  const bin = Math.floor(h / 5) % 72
+  bins[bin] = (bins[bin] || 0) + 1
+
+  if (isRedLike(r, g, b, h, s)) return 'red'
+  if (isPurpleLike(r, g, b, h, s)) return 'purple'
+  if (isBlueLike(r, g, b, h, s)) return 'blue'
+  return 'none'
+}
+
 function classifyColor(payload: {
   hue: number
   saturation: number
@@ -111,22 +157,21 @@ function classifyColor(payload: {
   redRatio: number
   purpleRatio: number
   blueRatio: number
+  purity: number
 }): AnalyzeResult {
-  const { hue, saturation, value, redRatio, purpleRatio, blueRatio } = payload
+  const { hue, saturation, value, redRatio, purpleRatio, blueRatio, purity } = payload
   const dominant = Math.max(redRatio, purpleRatio, blueRatio)
+
+  // 置信度 = 主导占比 × 颜色纯度加权，反映「颜色有多占主导、有多纯」
+  const confidenceOf = (ratio: number) => Math.round(Math.min(99, ratio * 100 * (0.72 + 0.28 * purity)))
 
   if (blueRatio >= 0.38 && saturation >= 0.18 && value >= 0.2) {
     return {
       status: '滴定终点',
       tone: 'blue',
-      confidence: Math.min(99, 72 + blueRatio * 28),
-      hue,
-      saturation,
-      value,
-      redRatio,
-      purpleRatio,
-      blueRatio,
-      message: '图片中心区域以纯蓝色为主，可作为候选滴定终点。正式实验仍需继续验证 30 秒稳定性。',
+      confidence: confidenceOf(blueRatio),
+      hue, saturation, value, redRatio, purpleRatio, blueRatio,
+      message: '图片 ROI 区域以纯蓝色为主，可作为候选滴定终点。正式实验仍需继续验证 30 秒稳定性。',
     }
   }
 
@@ -134,14 +179,9 @@ function classifyColor(payload: {
     return {
       status: '临近终点',
       tone: 'purple',
-      confidence: Math.min(96, 66 + Math.max(purpleRatio, blueRatio) * 26),
-      hue,
-      saturation,
-      value,
-      redRatio,
-      purpleRatio,
-      blueRatio,
-      message: '识别到蓝紫色或红蓝混合过渡色，说明滴定过程接近终点，需要放慢滴定速度。',
+      confidence: confidenceOf(Math.max(purpleRatio, blueRatio)),
+      hue, saturation, value, redRatio, purpleRatio, blueRatio,
+      message: '识别到蓝紫色或红蓝混合过渡色，说明滴定接近终点，需要放慢滴定速度。',
     }
   }
 
@@ -149,28 +189,18 @@ function classifyColor(payload: {
     return {
       status: '滴定进行中',
       tone: 'red',
-      confidence: Math.min(95, 65 + redRatio * 26),
-      hue,
-      saturation,
-      value,
-      redRatio,
-      purpleRatio,
-      blueRatio,
-      message: '图片中心区域仍以酒红色或玫瑰红色为主，尚未达到滴定终点。',
+      confidence: confidenceOf(redRatio),
+      hue, saturation, value, redRatio, purpleRatio, blueRatio,
+      message: '图片 ROI 区域仍以酒红色或玫瑰红色为主，尚未达到滴定终点。',
     }
   }
 
   return {
     status: '颜色异常',
     tone: 'warning',
-    confidence: Math.max(35, dominant * 100),
-    hue,
-    saturation,
-    value,
-    redRatio,
-    purpleRatio,
-    blueRatio,
-    message: '未匹配到典型酒红色、蓝紫色或纯蓝色。请检查图片光照、容器反光或重新选择包含溶液主体的图片。',
+    confidence: Math.max(35, Math.round(dominant * 100)),
+    hue, saturation, value, redRatio, purpleRatio, blueRatio,
+    message: '未匹配到典型酒红色、蓝紫色或纯蓝色。请检查光照、容器反光或重新框选溶液主体区域。',
   }
 }
 
@@ -202,6 +232,8 @@ function updateRoiByMouse(event: MouseEvent) {
       h: clamp(roiStart.h + deltaY, 12, 100 - roiStart.y),
     }
   }
+  // 拖拽过程中实时分析（防抖）
+  scheduleAnalyze()
 }
 
 function stopRoiAdjust() {
@@ -227,82 +259,196 @@ function startRoiAdjust(event: MouseEvent, action: 'move' | 'resize') {
   window.addEventListener('mouseup', stopRoiAdjust)
 }
 
+/** 防抖调度实时分析。 */
+function scheduleAnalyze() {
+  if (analyzeTimer) window.clearTimeout(analyzeTimer)
+  analyzeTimer = window.setTimeout(() => {
+    if (imageUrl.value) analyzeImage(imageUrl.value)
+  }, 150)
+}
+
 function analyzeImage(url: string) {
+  // 复用缓存图片，避免重复加载
+  if (cachedImage && cachedImage.src === url) {
+    analyzeWithImage(cachedImage)
+    return
+  }
   const image = new Image()
   image.onload = () => {
-    const canvas = document.createElement('canvas')
-    const maxWidth = 900
-    const scale = Math.min(1, maxWidth / image.width)
-    canvas.width = Math.max(1, Math.round(image.width * scale))
-    canvas.height = Math.max(1, Math.round(image.height * scale))
-
-    const ctx = canvas.getContext('2d', { willReadFrequently: true })
-    if (!ctx) return
-
-    ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
-
-    const roi = {
-      x: Math.round(canvas.width * (ImageRecognitionDemoRoi().x / 100)),
-      y: Math.round(canvas.height * (ImageRecognitionDemoRoi().y / 100)),
-      w: Math.round(canvas.width * (ImageRecognitionDemoRoi().w / 100)),
-      h: Math.round(canvas.height * (ImageRecognitionDemoRoi().h / 100)),
-    }
-    const imageData = ctx.getImageData(roi.x, roi.y, roi.w, roi.h).data
-
-    let count = 0
-    let hueSum = 0
-    let saturationSum = 0
-    let valueSum = 0
-    let redCount = 0
-    let purpleCount = 0
-    let blueCount = 0
-
-    for (let i = 0; i < imageData.length; i += 4) {
-      const alpha = imageData[i + 3]
-      if (alpha < 200) continue
-
-      const r = imageData[i]
-      const g = imageData[i + 1]
-      const b = imageData[i + 2]
-      const { h, s, v } = rgbToHsv(r, g, b)
-      if (v < 0.12 || v > 0.98 || s < 0.08) continue
-
-      count += 1
-      hueSum += h
-      saturationSum += s
-      valueSum += v
-
-      if (isRedLike(r, g, b, h, s)) redCount += 1
-      else if (isPurpleLike(r, g, b, h, s)) purpleCount += 1
-      else if (isBlueLike(r, g, b, h, s)) blueCount += 1
-    }
-
-    if (count === 0) {
-      result.value = {
-        status: '颜色异常',
-        tone: 'warning',
-        confidence: 0,
-        hue: 0,
-        saturation: 0,
-        value: 0,
-        redRatio: 0,
-        purpleRatio: 0,
-        blueRatio: 0,
-        message: '图片中心区域有效颜色像素过少，请上传更清晰的滴定溶液图片。',
-      }
-      return
-    }
-
-    result.value = classifyColor({
-      hue: hueSum / count,
-      saturation: saturationSum / count,
-      value: valueSum / count,
-      redRatio: redCount / count,
-      purpleRatio: purpleCount / count,
-      blueRatio: blueCount / count,
-    })
+    cachedImage = image
+    analyzeWithImage(image)
   }
   image.src = url
+}
+
+function analyzeWithImage(image: HTMLImageElement) {
+  if (!cachedCanvas) cachedCanvas = document.createElement('canvas')
+  const canvas = cachedCanvas
+  const maxWidth = 900
+  const scale = Math.min(1, maxWidth / image.width)
+  canvas.width = Math.max(1, Math.round(image.width * scale))
+  canvas.height = Math.max(1, Math.round(image.height * scale))
+
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  if (!ctx) return
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
+
+  const roiPx = {
+    x: Math.round(canvas.width * (roi.value.x / 100)),
+    y: Math.round(canvas.height * (roi.value.y / 100)),
+    w: Math.round(canvas.width * (roi.value.w / 100)),
+    h: Math.round(canvas.height * (roi.value.h / 100)),
+  }
+  const imageData = ctx.getImageData(roiPx.x, roiPx.y, roiPx.w, roiPx.h)
+  const data = imageData.data
+
+  // 1. 光照补偿：灰度世界白平衡
+  const gain = computeWhiteBalance(data)
+  balanceGain.value = gain
+
+  // 2. 分区采样 + 反光排除（5×5 网格，过亮/过暗格子跳过）
+  const grid = 5
+  const cellW = Math.max(1, Math.floor(roiPx.w / grid))
+  const cellH = Math.max(1, Math.floor(roiPx.h / grid))
+  const bins = new Array(72).fill(0)
+
+  let count = 0
+  let hueSum = 0
+  let saturationSum = 0
+  let valueSum = 0
+  let redCount = 0
+  let purpleCount = 0
+  let blueCount = 0
+  let saturationTotal = 0
+
+  let totalCells = 0
+  let usedCells = 0
+
+  for (let cy = 0; cy < grid; cy++) {
+    for (let cx = 0; cx < grid; cx++) {
+      totalCells++
+      const x0 = cx * cellW
+      const y0 = cy * cellH
+      const x1 = Math.min(roiPx.w, x0 + cellW)
+      const y1 = Math.min(roiPx.h, y0 + cellH)
+
+      // 统计该格平均亮度，反光格（整体过亮）跳过
+      let cellVSum = 0
+      let cellN = 0
+      for (let y = y0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) {
+          const idx = (y * roiPx.w + x) * 4
+          cellVSum += Math.max(data[idx], data[idx + 1], data[idx + 2]) / 255
+          cellN++
+        }
+      }
+      const cellAvgV = cellN === 0 ? 0 : cellVSum / cellN
+      if (cellAvgV > 0.94 || cellAvgV < 0.06) continue // 反光/过暗格子跳过
+      usedCells++
+
+      // 逐像素分类
+      for (let y = y0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) {
+          const idx = (y * roiPx.w + x) * 4
+          const alpha = data[idx + 3]
+          if (alpha < 200) continue
+
+          let r = data[idx]
+          let g = data[idx + 1]
+          let b = data[idx + 2]
+
+          // 应用白平衡增益
+          if (gain) {
+            r = clamp(r * gain.r, 0, 255)
+            g = clamp(g * gain.g, 0, 255)
+            b = clamp(b * gain.b, 0, 255)
+          }
+
+          const { h, s, v } = rgbToHsv(r, g, b)
+          if (v < 0.12 || v > 0.98 || s < 0.08) continue
+
+          count++
+          hueSum += h
+          saturationSum += s
+          valueSum += v
+          saturationTotal += s
+
+          const cls = classifyPixel(r, g, b, h, s, bins)
+          if (cls === 'red') redCount++
+          else if (cls === 'purple') purpleCount++
+          else if (cls === 'blue') blueCount++
+        }
+      }
+    }
+  }
+
+  samplingInfo.value = { totalCells, usedCells }
+  histogram.value = bins
+
+  if (count === 0) {
+    result.value = {
+      status: '颜色异常',
+      tone: 'warning',
+      confidence: 0,
+      hue: 0, saturation: 0, value: 0,
+      redRatio: 0, purpleRatio: 0, blueRatio: 0,
+      message: 'ROI 区域有效颜色像素过少，请重新框选溶液主体区域，或检查光照条件。',
+    }
+    drawHistogram()
+    return
+  }
+
+  const purity = saturationTotal / count // 平均饱和度，反映颜色纯度
+  result.value = classifyColor({
+    hue: hueSum / count,
+    saturation: saturationSum / count,
+    value: valueSum / count,
+    redRatio: redCount / count,
+    purpleRatio: purpleCount / count,
+    blueRatio: blueCount / count,
+    purity,
+  })
+  drawHistogram()
+}
+
+/** 绘制色相分布直方图（0-360°，72 bin）。 */
+function drawHistogram() {
+  nextTick(() => {
+    const canvas = histogramCanvas.value
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    const w = canvas.width
+    const h = canvas.height
+    ctx.clearRect(0, 0, w, h)
+
+    const bins = histogram.value
+    if (!bins.length) return
+    const maxCount = Math.max(1, ...bins)
+
+    // 绘制基线
+    ctx.strokeStyle = '#dde1e6'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(0, h - 1)
+    ctx.lineTo(w, h - 1)
+    ctx.stroke()
+
+    const binW = w / 72
+    for (let i = 0; i < 72; i++) {
+      const hue = i * 5
+      // 根据色相判断属于哪个阈值区间，着色
+      let color = '#cbd5e1' // 默认灰
+      if (inRange(hue, 330, 25) || inRange(hue, 300, 329)) color = '#e05a6b' // 酒红
+      else if (inRange(hue, 235, 315)) color = '#8f6bd6' // 蓝紫
+      else if (inRange(hue, 185, 240)) color = '#2f7de0' // 纯蓝
+
+      const bh = (bins[i] / maxCount) * (h - 20)
+      ctx.fillStyle = color
+      ctx.fillRect(i * binW + 0.5, h - 1 - bh, Math.max(1, binW - 1), bh)
+    }
+  })
 }
 
 function ImageRecognitionDemoRoi() {
@@ -353,7 +499,6 @@ async function saveResult() {
 
   saving.value = true
   try {
-    // 取第一个已发布任务作为关联任务
     let taskId: number | null = null
     try {
       const taskRes = await getTaskList({ page: 1, size: 1 })
@@ -397,7 +542,7 @@ async function saveResult() {
       <div>
         <p>Demo</p>
         <h2>滴定图片颜色识别</h2>
-        <span>先上传静态图片，自动判断当前颜色状态；后续可替换为 Python 实时摄像头识别。</span>
+        <span>上传图片自动识别颜色状态，支持框选 ROI、光照补偿、色相分布分析。</span>
       </div>
       <label class="upload-button">
         上传滴定图片
@@ -459,6 +604,22 @@ async function saveResult() {
             <b>{{ percent(result.blueRatio) }}</b>
             <i><em :style="{ width: percent(result.blueRatio) }"></em></i>
           </label>
+        </div>
+
+        <div class="hue-histogram">
+          <div class="histogram-title">
+            <span>色相分布（0-360°）</span>
+            <span v-if="samplingInfo.usedCells" class="sampling-hint">
+              有效采样 {{ samplingInfo.usedCells }}/{{ samplingInfo.totalCells }} 格
+              <template v-if="balanceGain">· 已白平衡</template>
+            </span>
+          </div>
+          <canvas ref="histogramCanvas" width="560" height="110" class="histogram-canvas"></canvas>
+          <div class="histogram-legend">
+            <span><i class="legend-dot red"></i>酒红 330-25°</span>
+            <span><i class="legend-dot purple"></i>蓝紫 235-315°</span>
+            <span><i class="legend-dot blue"></i>纯蓝 185-240°</span>
+          </div>
         </div>
 
         <p class="recognition-message">{{ result.message }}</p>
