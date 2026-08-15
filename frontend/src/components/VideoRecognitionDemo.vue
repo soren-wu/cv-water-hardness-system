@@ -683,7 +683,7 @@ async function saveResult() {
         <div :class="currentStatusClass">
           <div>
             <small>{{ playbackStarted ? `当前播放 ${formatTime(playbackTime)}` : '视频分析结果' }}</small>
-            <b>{{ currentMatchLabel }} {{ fixed(currentFrame?.confidence || 0) }}%</b>
+            <b>{{ currentFrame ? `${currentMatchLabel} ${Math.round(currentFrame.confidence)}%` : '等待播放' }}</b>
           </div>
           <strong>{{ currentStatus }}</strong>
         </div>

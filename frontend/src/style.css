@@ -1736,7 +1736,7 @@ button {
 .video-frame-stats strong {
   color: #152238;
   font-size: 21px;
-  line-height: 1.2;
+  line-height: 1.1;
 }
 
 .video-live-metrics {
@@ -1809,19 +1809,21 @@ button {
 .frame-timeline {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   min-height: 32px;
   margin-top: 14px;
   padding: 9px;
   border: 1px solid #e3eaf2;
   border-radius: 8px;
   background: #fbfdff;
-  overflow-x: auto;
+  overflow: hidden;
 }
 
 .frame-timeline span {
   display: block;
-  flex: 0 0 9px;
+  flex: 1 1 0;
+  min-width: 2px;
+  max-width: 14px;
   height: 18px;
   border-radius: 999px;
   background: #cbd5e1;
