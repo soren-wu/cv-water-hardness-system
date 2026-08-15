@@ -68,3 +68,38 @@ VALUES
    78.50, 245.00, 0.3800, 0.5400,
    0.1200, 0.6500, 0.2300,
    'SUBMITTED', CURRENT_TIMESTAMP);
+
+-- HSV 采样数据（体现酒红→蓝紫→纯蓝的滴定颜色变化）
+INSERT INTO color_samples (experiment_id, frame_index, hue, saturation, brightness, confidence, state_label)
+VALUES
+  (1, 0, 340.00, 0.5500, 0.5000, 90.00, 'INITIAL'),
+  (1, 1, 330.00, 0.5200, 0.5100, 88.00, 'INITIAL'),
+  (1, 2, 285.00, 0.4500, 0.5300, 75.00, 'NEAR_ENDPOINT'),
+  (1, 3, 245.00, 0.4200, 0.5600, 80.00, 'NEAR_ENDPOINT'),
+  (1, 4, 225.00, 0.4400, 0.6000, 90.00, 'CANDIDATE_ENDPOINT'),
+  (1, 5, 210.00, 0.4500, 0.6200, 97.60, 'ENDPOINT'),
+  (2, 0, 342.00, 0.5400, 0.4900, 89.00, 'INITIAL'),
+  (2, 1, 280.00, 0.4400, 0.5400, 76.00, 'NEAR_ENDPOINT'),
+  (2, 2, 240.00, 0.4300, 0.5700, 82.00, 'NEAR_ENDPOINT'),
+  (2, 3, 215.00, 0.4400, 0.6000, 93.00, 'CANDIDATE_ENDPOINT'),
+  (2, 4, 208.00, 0.4300, 0.5900, 95.20, 'ENDPOINT'),
+  (3, 0, 345.00, 0.5600, 0.4800, 91.00, 'INITIAL'),
+  (3, 1, 320.00, 0.5000, 0.5000, 85.00, 'INITIAL'),
+  (3, 2, 270.00, 0.4200, 0.5200, 74.00, 'NEAR_ENDPOINT'),
+  (3, 3, 250.00, 0.4000, 0.5300, 77.00, 'NEAR_ENDPOINT'),
+  (3, 4, 245.00, 0.3800, 0.5400, 78.50, 'NEAR_ENDPOINT');
+
+-- 状态事件时间线
+INSERT INTO state_events (experiment_id, event_type, event_message, occurred_at)
+VALUES
+  (1, 'STATE_CHANGE', '开始采集，等待框选 ROI', CURRENT_TIMESTAMP),
+  (1, 'STATE_CHANGE', '检测到酒红色，滴定进行中', CURRENT_TIMESTAMP),
+  (1, 'STATE_CHANGE', '检测到蓝紫色，临近终点', CURRENT_TIMESTAMP),
+  (1, 'STATE_CHANGE', '纯蓝色稳定达标，确认滴定终点', CURRENT_TIMESTAMP),
+  (2, 'STATE_CHANGE', '开始采集，等待框选 ROI', CURRENT_TIMESTAMP),
+  (2, 'STATE_CHANGE', '检测到酒红色，滴定进行中', CURRENT_TIMESTAMP),
+  (2, 'STATE_CHANGE', '检测到蓝紫色，临近终点', CURRENT_TIMESTAMP),
+  (2, 'STATE_CHANGE', '纯蓝色稳定达标，确认滴定终点', CURRENT_TIMESTAMP),
+  (3, 'STATE_CHANGE', '开始采集，等待框选 ROI', CURRENT_TIMESTAMP),
+  (3, 'STATE_CHANGE', '检测到酒红色，滴定进行中', CURRENT_TIMESTAMP),
+  (3, 'STATE_CHANGE', '检测到蓝紫色，临近终点，需继续滴定', CURRENT_TIMESTAMP);
