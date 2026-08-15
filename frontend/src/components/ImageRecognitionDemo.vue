@@ -39,6 +39,8 @@ const result = ref<AnalyzeResult>({
 
 // 色相直方图数据（72 个 bin，每 5° 一个）
 const histogram = ref<number[]>([])
+// 直方图 Canvas 引用
+const histogramCanvas = ref<HTMLCanvasElement | null>(null)
 // 光照补偿增益（灰度世界白平衡），展示用
 const balanceGain = ref<{ r: number; g: number; b: number } | null>(null)
 // 采样统计：有效格 / 排除反光格
@@ -117,25 +119,37 @@ function isBlueLike(r: number, g: number, b: number, h: number, s: number) {
 }
 
 /**
- * 灰度世界白平衡：统计 ROI 平均 RGB，计算增益消除整体偏色。
- * 增益限制在 [0.5, 1.6] 避免过度校正。
+ * 白色参考白平衡：找接近白色的像素（高亮且三通道接近）作为光照参考，
+ * 用它们估计色温增益。单色滴定场景没有白色参考时不校正，避免把颜色拉灰。
  */
 function computeWhiteBalance(data: Uint8ClampedArray): { r: number; g: number; b: number } | null {
   let rSum = 0, gSum = 0, bSum = 0, n = 0
+  let total = 0
   for (let i = 0; i < data.length; i += 4) {
-    rSum += data[i]
-    gSum += data[i + 1]
-    bSum += data[i + 2]
-    n++
+    const r = data[i]
+    const g = data[i + 1]
+    const b = data[i + 2]
+    total++
+    const max = Math.max(r, g, b)
+    const min = Math.min(r, g, b)
+    // 接近白色：亮度足够且三通道接近
+    if (max > 180 && max - min < 55) {
+      rSum += r
+      gSum += g
+      bSum += b
+      n++
+    }
   }
-  if (n === 0) return null
+  // 白色参考像素占比 < 3%，判定为纯单色场景，不做白平衡
+  if (n < total * 0.03) return null
+
   const rAvg = rSum / n
   const gAvg = gSum / n
   const bAvg = bSum / n
   const gray = (rAvg + gAvg + bAvg) / 3
   if (gray === 0) return null
 
-  const clampGain = (g: number) => Math.min(1.6, Math.max(0.5, g))
+  const clampGain = (g: number) => Math.min(1.25, Math.max(0.8, g))
   return { r: clampGain(gray / rAvg), g: clampGain(gray / gAvg), b: clampGain(gray / bAvg) }
 }
 
