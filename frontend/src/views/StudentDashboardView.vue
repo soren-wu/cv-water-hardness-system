@@ -6,6 +6,7 @@ import FlaskArtwork from '../components/FlaskArtwork.vue'
 import ImageRecognitionDemo from '../components/ImageRecognitionDemo.vue'
 import StatCard from '../components/StatCard.vue'
 import TrendChart from '../components/TrendChart.vue'
+import VideoRecognitionDemo from '../components/VideoRecognitionDemo.vue'
 import { useAuthStore } from '../stores/auth'
 import { getExperimentList, type ExperimentRecord } from '../api/experiment'
 import { getTaskList, type TaskRecord } from '../api/task'
@@ -85,6 +86,7 @@ onMounted(() => {
 <template>
   <div class="dashboard-content">
     <ImageRecognitionDemo />
+    <VideoRecognitionDemo />
 
     <section class="overview-grid">
       <article class="course-card">

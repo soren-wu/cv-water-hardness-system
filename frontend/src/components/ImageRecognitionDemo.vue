@@ -19,6 +19,16 @@ interface AnalyzeResult {
 
 const imageUrl = ref('')
 const fileName = ref('')
+const roi = ref({ x: 0, y: 0, w: 100, h: 100 })
+const roiAction = ref<'move' | 'resize' | null>(null)
+let roiStart = {
+  mouseX: 0,
+  mouseY: 0,
+  x: 0,
+  y: 0,
+  w: 0,
+  h: 0,
+}
 const result = ref<AnalyzeResult>({
   status: '未识别',
   tone: 'muted',
@@ -33,6 +43,12 @@ const result = ref<AnalyzeResult>({
 })
 
 const statusClass = computed(() => `recognition-status ${result.value.tone}`)
+const roiStyle = computed(() => ({
+  left: `${roi.value.x}%`,
+  top: `${roi.value.y}%`,
+  width: `${roi.value.w}%`,
+  height: `${roi.value.h}%`,
+}))
 const matchLabel = computed(() => {
   if (result.value.status === '滴定进行中') return '酒红色匹配度'
   if (result.value.status === '临近终点') return '蓝紫色匹配度'
@@ -64,6 +80,25 @@ function rgbToHsv(r: number, g: number, b: number) {
 function inRange(h: number, start: number, end: number) {
   if (start <= end) return h >= start && h <= end
   return h >= start || h <= end
+}
+
+function isRedLike(r: number, g: number, b: number, h: number, s: number) {
+  const redDominant = r >= g * 1.08 && r >= b * 1.08
+  const hueMatches = inRange(h, 330, 25) || inRange(h, 300, 329)
+  return s >= 0.12 && redDominant && (hueMatches || r >= 120)
+}
+
+function isPurpleLike(r: number, g: number, b: number, h: number, s: number) {
+  const redBlueMixed = r >= g * 1.02 && b >= g * 1.02 && Math.abs(r - b) <= Math.max(r, b) * 0.42
+  const hueMatches = inRange(h, 245, 315)
+  return s >= 0.12 && redBlueMixed && hueMatches
+}
+
+function isBlueLike(r: number, g: number, b: number, h: number, s: number) {
+  const blueDominant = b >= r * 1.12 && b >= g * 0.95
+  const cyanBlue = b >= r * 1.18 && g >= r * 1.05
+  const hueMatches = inRange(h, 185, 240)
+  return s >= 0.12 && hueMatches && (blueDominant || cyanBlue)
 }
 
 function classifyColor(payload: {
@@ -136,6 +171,59 @@ function classifyColor(payload: {
   }
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function updateRoiByMouse(event: MouseEvent) {
+  if (!roiAction.value) return
+
+  const target = event.currentTarget
+  const preview = document.querySelector('.uploaded-image-wrap') as HTMLElement | null
+  if (!preview || target === null) return
+
+  const rect = preview.getBoundingClientRect()
+  const deltaX = ((event.clientX - roiStart.mouseX) / rect.width) * 100
+  const deltaY = ((event.clientY - roiStart.mouseY) / rect.height) * 100
+
+  if (roiAction.value === 'move') {
+    roi.value = {
+      ...roi.value,
+      x: clamp(roiStart.x + deltaX, 0, 100 - roiStart.w),
+      y: clamp(roiStart.y + deltaY, 0, 100 - roiStart.h),
+    }
+  } else {
+    roi.value = {
+      ...roi.value,
+      w: clamp(roiStart.w + deltaX, 12, 100 - roiStart.x),
+      h: clamp(roiStart.h + deltaY, 12, 100 - roiStart.y),
+    }
+  }
+}
+
+function stopRoiAdjust() {
+  roiAction.value = null
+  window.removeEventListener('mousemove', updateRoiByMouse)
+  window.removeEventListener('mouseup', stopRoiAdjust)
+  if (imageUrl.value) analyzeImage(imageUrl.value)
+}
+
+function startRoiAdjust(event: MouseEvent, action: 'move' | 'resize') {
+  event.preventDefault()
+  event.stopPropagation()
+  roiAction.value = action
+  roiStart = {
+    mouseX: event.clientX,
+    mouseY: event.clientY,
+    x: roi.value.x,
+    y: roi.value.y,
+    w: roi.value.w,
+    h: roi.value.h,
+  }
+  window.addEventListener('mousemove', updateRoiByMouse)
+  window.addEventListener('mouseup', stopRoiAdjust)
+}
+
 function analyzeImage(url: string) {
   const image = new Image()
   image.onload = () => {
@@ -151,10 +239,10 @@ function analyzeImage(url: string) {
     ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
 
     const roi = {
-      x: Math.round(canvas.width * 0.28),
-      y: Math.round(canvas.height * 0.28),
-      w: Math.round(canvas.width * 0.44),
-      h: Math.round(canvas.height * 0.44),
+      x: Math.round(canvas.width * (ImageRecognitionDemoRoi().x / 100)),
+      y: Math.round(canvas.height * (ImageRecognitionDemoRoi().y / 100)),
+      w: Math.round(canvas.width * (ImageRecognitionDemoRoi().w / 100)),
+      h: Math.round(canvas.height * (ImageRecognitionDemoRoi().h / 100)),
     }
     const imageData = ctx.getImageData(roi.x, roi.y, roi.w, roi.h).data
 
@@ -170,7 +258,10 @@ function analyzeImage(url: string) {
       const alpha = imageData[i + 3]
       if (alpha < 200) continue
 
-      const { h, s, v } = rgbToHsv(imageData[i], imageData[i + 1], imageData[i + 2])
+      const r = imageData[i]
+      const g = imageData[i + 1]
+      const b = imageData[i + 2]
+      const { h, s, v } = rgbToHsv(r, g, b)
       if (v < 0.12 || v > 0.98 || s < 0.08) continue
 
       count += 1
@@ -178,9 +269,9 @@ function analyzeImage(url: string) {
       saturationSum += s
       valueSum += v
 
-      if (inRange(h, 330, 25) || inRange(h, 300, 329)) redCount += 1
-      if (inRange(h, 255, 315) || inRange(h, 235, 254)) purpleCount += 1
-      if (inRange(h, 185, 235)) blueCount += 1
+      if (isRedLike(r, g, b, h, s)) redCount += 1
+      else if (isPurpleLike(r, g, b, h, s)) purpleCount += 1
+      else if (isBlueLike(r, g, b, h, s)) blueCount += 1
     }
 
     if (count === 0) {
@@ -209,6 +300,10 @@ function analyzeImage(url: string) {
     })
   }
   image.src = url
+}
+
+function ImageRecognitionDemoRoi() {
+  return roi.value
 }
 
 function handleFileChange(event: Event) {
@@ -256,7 +351,9 @@ function fixed(value: number, digits = 1) {
       <div class="image-preview-card">
         <div v-if="imageUrl" class="uploaded-image-wrap">
           <img :src="imageUrl" alt="滴定图片预览" />
-          <div class="auto-roi-box"><span>自动 ROI</span></div>
+          <div class="auto-roi-box adjustable-roi-box" :style="roiStyle" @mousedown="startRoiAdjust($event, 'move')">
+            <button class="roi-resize-handle" type="button" aria-label="调整 ROI 大小" @mousedown="startRoiAdjust($event, 'resize')"></button>
+          </div>
         </div>
         <div v-else class="upload-placeholder">
           <strong>选择一张锥形瓶或烧杯中的滴定溶液图片</strong>
