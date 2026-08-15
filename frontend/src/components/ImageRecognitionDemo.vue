@@ -308,11 +308,14 @@ function analyzeWithImage(image: HTMLImageElement) {
   ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
 
   const roiPx = {
-    x: Math.round(canvas.width * (roi.value.x / 100)),
-    y: Math.round(canvas.height * (roi.value.y / 100)),
+    x: Math.min(canvas.width - 1, Math.max(0, Math.round(canvas.width * (roi.value.x / 100)))),
+    y: Math.min(canvas.height - 1, Math.max(0, Math.round(canvas.height * (roi.value.y / 100)))),
     w: Math.round(canvas.width * (roi.value.w / 100)),
     h: Math.round(canvas.height * (roi.value.h / 100)),
   }
+  // 防止浮点舍入导致越界
+  roiPx.w = Math.max(1, Math.min(roiPx.w, canvas.width - roiPx.x))
+  roiPx.h = Math.max(1, Math.min(roiPx.h, canvas.height - roiPx.y))
   const imageData = ctx.getImageData(roiPx.x, roiPx.y, roiPx.w, roiPx.h)
   const data = imageData.data
 

@@ -277,11 +277,13 @@ function analyzeCanvasFrame(canvas: HTMLCanvasElement, time: number): FrameResul
   }
 
   const roi = {
-    x: Math.round(canvas.width * (VideoRecognitionDemoRoi().x / 100)),
-    y: Math.round(canvas.height * (VideoRecognitionDemoRoi().y / 100)),
+    x: Math.min(canvas.width - 1, Math.max(0, Math.round(canvas.width * (VideoRecognitionDemoRoi().x / 100)))),
+    y: Math.min(canvas.height - 1, Math.max(0, Math.round(canvas.height * (VideoRecognitionDemoRoi().y / 100)))),
     w: Math.round(canvas.width * (VideoRecognitionDemoRoi().w / 100)),
     h: Math.round(canvas.height * (VideoRecognitionDemoRoi().h / 100)),
   }
+  roi.w = Math.max(1, Math.min(roi.w, canvas.width - roi.x))
+  roi.h = Math.max(1, Math.min(roi.h, canvas.height - roi.y))
   const data = ctx.getImageData(roi.x, roi.y, roi.w, roi.h).data
 
   let count = 0
