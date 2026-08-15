@@ -454,8 +454,8 @@ watchEffect(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
-  border: 1px solid #e0e4e8;
+  padding: 7px 14px;
+  border: 1px solid #dde1e6;
   border-radius: 6px;
   background: #fff;
   color: #7b8ba0;

@@ -782,21 +782,20 @@ onBeforeUnmount(() => {
 }
 .camera-toggle {
   flex-shrink: 0;
-  padding: 9px 16px;
-  border: none;
-  border-radius: 8px;
-  background: #3b6cb4;
-  color: #fff;
   font-size: 14px;
-  cursor: pointer;
-}
-.camera-toggle:hover {
-  background: #2f5aa0;
 }
 .camera-toggle.secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  padding: 0 16px;
+  border: 1px solid #dde1e6;
+  border-radius: 6px;
   background: #fff;
   color: #5a7a9a;
-  border: 1px solid #dde1e6;
+  font-size: 14px;
+  cursor: pointer;
 }
 .camera-toggle.secondary:hover {
   border-color: #e05a6b;
