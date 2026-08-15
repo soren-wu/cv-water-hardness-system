@@ -17,6 +17,7 @@ interface AnalyzeResult {
   redRatio: number
   purpleRatio: number
   blueRatio: number
+  otherRatio: number
   message: string
 }
 
@@ -34,6 +35,7 @@ const result = ref<AnalyzeResult>({
   redRatio: 0,
   purpleRatio: 0,
   blueRatio: 0,
+  otherRatio: 0,
   message: '请上传一张滴定实验图片，系统将自动分析画面中心区域的颜色。',
 })
 
@@ -99,23 +101,31 @@ function inRange(h: number, start: number, end: number) {
   return h >= start || h <= end
 }
 
+// 颜色阈值（与后端 threshold_templates「标准白光模板」保持一致）
+const COLOR_THRESHOLD = {
+  redHMin: 330, redHMax: 25,     // 酒红色：330°~25°（跨 0 度）
+  purpleHMin: 235, purpleHMax: 315, // 蓝紫色：235°~315°
+  blueHMin: 185, blueHMax: 235,  // 纯蓝色：185°~235°
+  minSaturation: 0.08,
+  minBrightness: 0.12,
+}
+
 function isRedLike(r: number, g: number, b: number, h: number, s: number) {
-  const redDominant = r >= g * 1.08 && r >= b * 1.08
-  const hueMatches = inRange(h, 330, 25) || inRange(h, 300, 329)
-  return s >= 0.12 && redDominant && (hueMatches || r >= 120)
+  const redDominant = r >= g * 1.05 && r >= b * 1.05
+  const hueMatches = inRange(h, COLOR_THRESHOLD.redHMin, COLOR_THRESHOLD.redHMax)
+  return s >= COLOR_THRESHOLD.minSaturation && redDominant && hueMatches
 }
 
 function isPurpleLike(r: number, g: number, b: number, h: number, s: number) {
-  const redBlueMixed = r >= g * 1.02 && b >= g * 1.02 && Math.abs(r - b) <= Math.max(r, b) * 0.42
-  const hueMatches = inRange(h, 245, 315)
-  return s >= 0.12 && redBlueMixed && hueMatches
+  const redBlueMixed = r >= g * 1.02 && b >= g * 1.02
+  const hueMatches = inRange(h, COLOR_THRESHOLD.purpleHMin, COLOR_THRESHOLD.purpleHMax)
+  return s >= COLOR_THRESHOLD.minSaturation && redBlueMixed && hueMatches
 }
 
 function isBlueLike(r: number, g: number, b: number, h: number, s: number) {
-  const blueDominant = b >= r * 1.12 && b >= g * 0.95
-  const cyanBlue = b >= r * 1.18 && g >= r * 1.05
-  const hueMatches = inRange(h, 185, 240)
-  return s >= 0.12 && hueMatches && (blueDominant || cyanBlue)
+  const blueDominant = b >= r * 1.1 && b >= g * 0.95
+  const hueMatches = inRange(h, COLOR_THRESHOLD.blueHMin, COLOR_THRESHOLD.blueHMax)
+  return s >= COLOR_THRESHOLD.minSaturation && blueDominant && hueMatches
 }
 
 /**
@@ -171,40 +181,42 @@ function classifyColor(payload: {
   redRatio: number
   purpleRatio: number
   blueRatio: number
+  otherRatio: number
   purity: number
 }): AnalyzeResult {
-  const { hue, saturation, value, redRatio, purpleRatio, blueRatio, purity } = payload
+  const { hue, saturation, value, redRatio, purpleRatio, blueRatio, otherRatio, purity } = payload
   const dominant = Math.max(redRatio, purpleRatio, blueRatio)
 
   // 置信度 = 主导占比 × 颜色纯度加权，反映「颜色有多占主导、有多纯」
   const confidenceOf = (ratio: number) => Math.round(Math.min(99, ratio * 100 * (0.72 + 0.28 * purity)))
 
-  if (blueRatio >= 0.38 && saturation >= 0.18 && value >= 0.2) {
+  // 按主导颜色判断状态（纯蓝 → 终点、蓝紫 → 临近、酒红 → 进行中）
+  if (blueRatio >= purpleRatio && blueRatio >= redRatio && blueRatio >= 0.3) {
     return {
       status: '滴定终点',
       tone: 'blue',
       confidence: confidenceOf(blueRatio),
-      hue, saturation, value, redRatio, purpleRatio, blueRatio,
+      hue, saturation, value, redRatio, purpleRatio, blueRatio, otherRatio,
       message: '图片 ROI 区域以纯蓝色为主，可作为候选滴定终点。正式实验仍需继续验证 30 秒稳定性。',
     }
   }
 
-  if ((purpleRatio >= 0.24 || (blueRatio >= 0.2 && redRatio >= 0.12)) && saturation >= 0.15) {
+  if (purpleRatio >= redRatio && purpleRatio >= 0.22) {
     return {
       status: '临近终点',
       tone: 'purple',
-      confidence: confidenceOf(Math.max(purpleRatio, blueRatio)),
-      hue, saturation, value, redRatio, purpleRatio, blueRatio,
-      message: '识别到蓝紫色或红蓝混合过渡色，说明滴定接近终点，需要放慢滴定速度。',
+      confidence: confidenceOf(purpleRatio),
+      hue, saturation, value, redRatio, purpleRatio, blueRatio, otherRatio,
+      message: '识别到蓝紫色过渡色，说明滴定接近终点，需要放慢滴定速度。',
     }
   }
 
-  if (redRatio >= 0.22 && saturation >= 0.16) {
+  if (redRatio >= 0.2) {
     return {
       status: '滴定进行中',
       tone: 'red',
       confidence: confidenceOf(redRatio),
-      hue, saturation, value, redRatio, purpleRatio, blueRatio,
+      hue, saturation, value, redRatio, purpleRatio, blueRatio, otherRatio,
       message: '图片 ROI 区域仍以酒红色或玫瑰红色为主，尚未达到滴定终点。',
     }
   }
@@ -213,7 +225,7 @@ function classifyColor(payload: {
     status: '颜色异常',
     tone: 'warning',
     confidence: Math.max(35, Math.round(dominant * 100)),
-    hue, saturation, value, redRatio, purpleRatio, blueRatio,
+    hue, saturation, value, redRatio, purpleRatio, blueRatio, otherRatio,
     message: '未匹配到典型酒红色、蓝紫色或纯蓝色。请检查光照、容器反光或重新框选溶液主体区域。',
   }
 }
@@ -336,6 +348,7 @@ function analyzeWithImage(image: HTMLImageElement) {
   let redCount = 0
   let purpleCount = 0
   let blueCount = 0
+  let otherCount = 0
   let saturationTotal = 0
 
   let totalCells = 0
@@ -394,6 +407,7 @@ function analyzeWithImage(image: HTMLImageElement) {
           if (cls === 'red') redCount++
           else if (cls === 'purple') purpleCount++
           else if (cls === 'blue') blueCount++
+          else otherCount++
         }
       }
     }
@@ -408,7 +422,7 @@ function analyzeWithImage(image: HTMLImageElement) {
       tone: 'warning',
       confidence: 0,
       hue: 0, saturation: 0, value: 0,
-      redRatio: 0, purpleRatio: 0, blueRatio: 0,
+      redRatio: 0, purpleRatio: 0, blueRatio: 0, otherRatio: 0,
       message: 'ROI 区域有效颜色像素过少，请重新框选溶液主体区域，或检查光照条件。',
     }
     drawHistogram()
@@ -423,6 +437,7 @@ function analyzeWithImage(image: HTMLImageElement) {
     redRatio: redCount / count,
     purpleRatio: purpleCount / count,
     blueRatio: blueCount / count,
+    otherRatio: otherCount / count,
     purity,
   })
   drawHistogram()
@@ -457,9 +472,9 @@ function drawHistogram() {
       const hue = i * 5
       // 根据色相判断属于哪个阈值区间，着色
       let color = '#cbd5e1' // 默认灰
-      if (inRange(hue, 330, 25) || inRange(hue, 300, 329)) color = '#e05a6b' // 酒红
-      else if (inRange(hue, 235, 315)) color = '#8f6bd6' // 蓝紫
-      else if (inRange(hue, 185, 240)) color = '#2f7de0' // 纯蓝
+      if (inRange(hue, COLOR_THRESHOLD.redHMin, COLOR_THRESHOLD.redHMax)) color = '#e05a6b' // 酒红
+      else if (inRange(hue, COLOR_THRESHOLD.purpleHMin, COLOR_THRESHOLD.purpleHMax)) color = '#8f6bd6' // 蓝紫
+      else if (inRange(hue, COLOR_THRESHOLD.blueHMin, COLOR_THRESHOLD.blueHMax)) color = '#2f7de0' // 纯蓝
 
       const bh = (bins[i] / maxCount) * (h - 20)
       ctx.fillStyle = color
@@ -620,6 +635,11 @@ async function saveResult() {
             <span>纯蓝色占比</span>
             <b>{{ percent(result.blueRatio) }}</b>
             <i><em :style="{ width: percent(result.blueRatio) }"></em></i>
+          </label>
+          <label>
+            <span>其他颜色</span>
+            <b>{{ percent(result.otherRatio) }}</b>
+            <i><em :style="{ width: percent(result.otherRatio) }"></em></i>
           </label>
         </div>
 
