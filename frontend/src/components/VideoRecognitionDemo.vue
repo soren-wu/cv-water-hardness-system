@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { submitExperiment } from '../api/experiment'
+import { getTaskList } from '../api/task'
+import { ElMessage } from 'element-plus'
 
 type RecognitionStatus = '滴定进行中' | '临近终点' | '滴定终点' | '颜色异常'
 
@@ -538,6 +541,61 @@ function formatDuration(value: number) {
   const seconds = (totalSeconds % 60).toString().padStart(2, '0')
   return `${minutes}:${seconds}`
 }
+
+// ---------- 保存到实验记录 ----------
+const saving = ref(false)
+
+const statusMap: Record<string, { status: string; color: string }> = {
+  '滴定进行中': { status: 'IN_PROGRESS', color: 'RED' },
+  '临近终点': { status: 'NEAR_ENDPOINT', color: 'PURPLE' },
+  '滴定终点': { status: 'ENDPOINT', color: 'BLUE' },
+  '颜色异常': { status: 'ABNORMAL', color: 'UNKNOWN' },
+}
+
+async function saveResult() {
+  if (finalStatus.value === '未分析' || !frameResults.value.length) {
+    ElMessage.warning('请先分析视频')
+    return
+  }
+
+  saving.value = true
+  try {
+    let taskId: number | null = null
+    try {
+      const taskRes = await getTaskList({ page: 1, size: 1 })
+      const tasks = taskRes.data.records || []
+      if (tasks.length > 0) taskId = tasks[0].id
+    } catch {
+      taskId = null
+    }
+
+    const trend = wholeVideoTrend.value
+    const m = statusMap[finalStatus.value] || { status: 'ABNORMAL', color: 'UNKNOWN' }
+    await submitExperiment({
+      taskId,
+      experimentName: 'EDTA 水硬度滴定（视频识别）',
+      sampleName: fileName.value || '水样',
+      detectMode: 'VIDEO',
+      recognitionStatus: m.status,
+      recognitionLabel: finalStatus.value,
+      matchedColor: m.color,
+      confidence: Math.round((trend?.confidence || 0) * 100) / 100,
+      hue: Math.round((trend?.hue || 0) * 100) / 100,
+      saturation: Math.round((trend?.saturation || 0) * 10000) / 10000,
+      brightness: Math.round((trend?.value || 0) * 10000) / 10000,
+      redRatio: Math.round((trend?.redRatio || 0) * 10000) / 10000,
+      purpleRatio: Math.round((trend?.purpleRatio || 0) * 10000) / 10000,
+      blueRatio: Math.round((trend?.blueRatio || 0) * 10000) / 10000,
+      submitStatus: 'SUBMITTED',
+      remark: `前端视频识别 Demo 结果，共 ${frameResults.value.length} 帧`,
+    })
+    ElMessage.success('识别结果已保存到实验记录')
+  } catch (e: any) {
+    ElMessage.error(e?.message || '保存失败，请重试')
+  } finally {
+    saving.value = false
+  }
+}
 </script>
 
 <template>
@@ -652,6 +710,15 @@ function formatDuration(value: number) {
         </div>
 
         <p class="recognition-message">{{ summaryMessage }}</p>
+
+        <button
+          class="save-result-button"
+          type="button"
+          :disabled="saving || finalStatus === '未分析' || !frameResults.length"
+          @click="saveResult"
+        >
+          {{ saving ? '保存中...' : '保存到实验记录' }}
+        </button>
 
         <div v-if="frameResults.length" class="frame-timeline">
           <span

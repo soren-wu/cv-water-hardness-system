@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { submitExperiment } from '../api/experiment'
+import { getTaskList } from '../api/task'
+import { ElMessage } from 'element-plus'
 
 type RecognitionStatus = '未识别' | '滴定进行中' | '临近终点' | '滴定终点' | '颜色异常'
 type StatusTone = 'muted' | 'red' | 'purple' | 'blue' | 'warning'
@@ -331,6 +334,61 @@ function percent(value: number) {
 function fixed(value: number, digits = 1) {
   return Number.isFinite(value) ? value.toFixed(digits) : '0'
 }
+
+// ---------- 保存到实验记录 ----------
+const saving = ref(false)
+
+const statusMap: Record<string, { status: string; color: string }> = {
+  '滴定进行中': { status: 'IN_PROGRESS', color: 'RED' },
+  '临近终点': { status: 'NEAR_ENDPOINT', color: 'PURPLE' },
+  '滴定终点': { status: 'ENDPOINT', color: 'BLUE' },
+  '颜色异常': { status: 'ABNORMAL', color: 'UNKNOWN' },
+}
+
+async function saveResult() {
+  if (result.value.status === '未识别') {
+    ElMessage.warning('请先上传图片并完成识别')
+    return
+  }
+
+  saving.value = true
+  try {
+    // 取第一个已发布任务作为关联任务
+    let taskId: number | null = null
+    try {
+      const taskRes = await getTaskList({ page: 1, size: 1 })
+      const tasks = taskRes.data.records || []
+      if (tasks.length > 0) taskId = tasks[0].id
+    } catch {
+      taskId = null
+    }
+
+    const m = statusMap[result.value.status] || { status: 'ABNORMAL', color: 'UNKNOWN' }
+    await submitExperiment({
+      taskId,
+      experimentName: 'EDTA 水硬度滴定（图片识别）',
+      sampleName: fileName.value || '水样',
+      detectMode: 'IMAGE',
+      recognitionStatus: m.status,
+      recognitionLabel: result.value.status,
+      matchedColor: m.color,
+      confidence: Math.round(result.value.confidence * 100) / 100,
+      hue: Math.round(result.value.hue * 100) / 100,
+      saturation: Math.round(result.value.saturation * 10000) / 10000,
+      brightness: Math.round(result.value.value * 10000) / 10000,
+      redRatio: Math.round(result.value.redRatio * 10000) / 10000,
+      purpleRatio: Math.round(result.value.purpleRatio * 10000) / 10000,
+      blueRatio: Math.round(result.value.blueRatio * 10000) / 10000,
+      submitStatus: 'SUBMITTED',
+      remark: '前端图片识别 Demo 结果',
+    })
+    ElMessage.success('识别结果已保存到实验记录')
+  } catch (e: any) {
+    ElMessage.error(e?.message || '保存失败，请重试')
+  } finally {
+    saving.value = false
+  }
+}
 </script>
 
 <template>
@@ -404,6 +462,15 @@ function fixed(value: number, digits = 1) {
         </div>
 
         <p class="recognition-message">{{ result.message }}</p>
+
+        <button
+          class="save-result-button"
+          type="button"
+          :disabled="saving || result.status === '未识别'"
+          @click="saveResult"
+        >
+          {{ saving ? '保存中...' : '保存到实验记录' }}
+        </button>
       </div>
     </div>
   </article>

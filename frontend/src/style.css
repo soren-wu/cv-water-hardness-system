@@ -1302,6 +1302,33 @@ button {
   line-height: 1.65;
 }
 
+.save-result-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  margin-top: 14px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 6px;
+  color: #fff;
+  background: linear-gradient(105deg, #147cf5, #0568ea);
+  box-shadow: 0 4px 12px rgba(0, 103, 229, .2);
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+
+.save-result-button:hover:not(:disabled) {
+  box-shadow: 0 6px 15px rgba(0, 103, 229, .3);
+  transform: translateY(-1px);
+}
+
+.save-result-button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
 .video-demo-panel {
   margin-bottom: 20px;
   padding: 18px;
