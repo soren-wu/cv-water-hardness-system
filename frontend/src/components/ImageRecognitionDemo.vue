@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, nextTick } from 'vue'
-import { submitExperiment } from '../api/experiment'
+import { submitExperiment, uploadFile } from '../api/experiment'
 import { getTaskList } from '../api/task'
 import { ElMessage } from 'element-plus'
 
@@ -54,6 +54,8 @@ const samplingInfo = ref({ totalCells: 0, usedCells: 0, focused: false })
 let cachedImage: HTMLImageElement | null = null
 let cachedCanvas: HTMLCanvasElement | null = null
 let analyzeTimer: number | null = null
+// 保存原始上传文件，供保存时上传到后端
+let sourceFile: File | null = null
 
 let roiStart = {
   mouseX: 0,
@@ -553,6 +555,7 @@ function handleFileChange(event: Event) {
 
   if (imageUrl.value) URL.revokeObjectURL(imageUrl.value)
   fileName.value = file.name
+  sourceFile = file
   imageUrl.value = URL.createObjectURL(file)
   result.value = {
     ...result.value,
@@ -600,7 +603,7 @@ async function saveResult() {
     }
 
     const m = statusMap[result.value.status] || { status: 'ABNORMAL', color: 'UNKNOWN' }
-    await submitExperiment({
+    const res = await submitExperiment({
       taskId,
       experimentName: 'EDTA 水硬度滴定（图片识别）',
       sampleName: fileName.value || '水样',
@@ -618,6 +621,15 @@ async function saveResult() {
       submitStatus: 'DRAFT',
       remark: '前端图片识别 Demo 结果',
     })
+    // 上传学生原始图片，供教师查看
+    const expId = res.data.id
+    if (expId && sourceFile) {
+      try {
+        await uploadFile(sourceFile, expId, 'SOURCE_IMAGE')
+      } catch {
+        // 图片上传失败不阻塞保存
+      }
+    }
     ElMessage.success('已保存为草稿，请在下方实验记录中提交')
     emit('saved')
   } catch (e: any) {

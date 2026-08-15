@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import AppIcon from '../../components/AppIcon.vue'
-import { getExperimentList, getExperimentDetail, exportExperiments, type ExperimentRecord } from '../../api/experiment'
+import { getExperimentList, getExperimentDetail, getExperimentFiles, downloadFile, exportExperiments, type ExperimentRecord } from '../../api/experiment'
 import { getReviewList, createReview, type ReviewRecord, type CreateReviewParams } from '../../api/review'
 
 const experiments = ref<ExperimentRecord[]>([])
@@ -18,6 +18,7 @@ const detailVisible = ref(false)
 const currentExp = ref<ExperimentRecord | null>(null)
 const reviews = ref<ReviewRecord[]>([])
 const detailLoading = ref(false)
+const keyframes = ref<{ id: number; name: string; url: string }[]>([])
 
 // 批阅弹窗
 const reviewVisible = ref(false)
@@ -49,6 +50,7 @@ async function openDetail(exp: ExperimentRecord) {
   detailLoading.value = true
   currentExp.value = null
   reviews.value = []
+  keyframes.value = []
   try {
     const [expDetail, reviewRes] = await Promise.all([
       getExperimentDetail(exp.id),
@@ -56,10 +58,33 @@ async function openDetail(exp: ExperimentRecord) {
     ])
     currentExp.value = expDetail.data
     reviews.value = reviewRes.data.records || []
+    await loadImages(exp.id)
   } catch {
     ElMessage.error('加载详情失败')
   } finally {
     detailLoading.value = false
+  }
+}
+
+async function loadImages(experimentId: number) {
+  // 释放旧的 blob URL
+  keyframes.value.forEach(k => URL.revokeObjectURL(k.url))
+  keyframes.value = []
+  try {
+    const filesRes = await getExperimentFiles(experimentId)
+    const files = (filesRes.data || []) as Array<{ id: number; contentType?: string; originalName?: string }>
+    const imageFiles = files.filter(f => (f.contentType || '').startsWith('image/'))
+    for (const f of imageFiles) {
+      try {
+        const res = await downloadFile(f.id)
+        const blob = res.data as Blob
+        keyframes.value.push({ id: f.id, name: f.originalName || '图片', url: URL.createObjectURL(blob) })
+      } catch {
+        // 忽略单个图片加载失败
+      }
+    }
+  } catch {
+    // 忽略文件加载失败
   }
 }
 
@@ -257,6 +282,13 @@ onMounted(loadExperiments)
               <span>备注</span>
               <p>{{ currentExp.remark }}</p>
             </div>
+            <h4 v-if="keyframes.length > 0">学生上传的图片</h4>
+            <div v-if="keyframes.length > 0" class="teacher-images">
+              <figure v-for="kf in keyframes" :key="kf.id" class="teacher-image-card">
+                <img :src="kf.url" :alt="kf.name" />
+                <figcaption>{{ kf.name }}</figcaption>
+              </figure>
+            </div>
             <h4 v-if="reviews.length > 0">批阅记录</h4>
             <div v-for="r in reviews" :key="r.id" class="review-card">
               <div class="review-score">{{ r.score }} 分</div>
@@ -423,5 +455,34 @@ h4 { font-size: 14px; color: #1a2332; margin: 18px 0 10px; padding-bottom: 6px; 
 .btn-cancel {
   padding: 8px 20px; border: 1px solid #dde1e6; border-radius: 6px;
   background: #fff; color: #5a7a9a; font-size: 14px; cursor: pointer;
+}
+
+.teacher-images {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+.teacher-image-card {
+  margin: 0;
+  border: 1px solid #e8ecf1;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fafbfc;
+}
+.teacher-image-card img {
+  display: block;
+  width: 100%;
+  height: 120px;
+  object-fit: contain;
+  background: #fff;
+  cursor: zoom-in;
+}
+.teacher-image-card figcaption {
+  padding: 6px 8px;
+  font-size: 11px;
+  color: #7b8ba0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

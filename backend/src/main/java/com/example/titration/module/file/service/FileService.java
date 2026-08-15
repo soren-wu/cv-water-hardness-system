@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -40,20 +41,21 @@ public class FileService {
         }
         try {
             String dateDir = LocalDate.now().toString().replace("-", "");
-            String storageDir = rootPath + "/experiments/" + dateDir;
-            File dir = new File(storageDir);
+            Path storageDir = Paths.get(rootPath, "experiments", dateDir).toAbsolutePath();
+            File dir = storageDir.toFile();
             if (!dir.exists() && !dir.mkdirs()) {
                 throw new BusinessException("创建存储目录失败");
             }
+            String originalName = file.getOriginalFilename() == null ? "file" : file.getOriginalFilename();
             String uniqueName = UUID.randomUUID().toString().substring(0, 8)
-                    + "_" + file.getOriginalFilename();
-            Path filePath = Paths.get(storageDir, uniqueName);
-            file.transferTo(filePath.toFile());
+                    + "_" + originalName;
+            Path filePath = storageDir.resolve(uniqueName);
+            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
             ExperimentFile experimentFile = new ExperimentFile();
             experimentFile.setExperimentId(experimentId);
             experimentFile.setFileType(fileType);
-            experimentFile.setOriginalName(file.getOriginalFilename());
+            experimentFile.setOriginalName(originalName);
             experimentFile.setStoragePath(filePath.toString().replace("\\", "/"));
             experimentFile.setContentType(file.getContentType());
             experimentFile.setFileSize(file.getSize());

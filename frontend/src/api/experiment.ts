@@ -146,3 +146,15 @@ export function getEvents(experimentId: number) {
 export function downloadFile(fileId: number) {
   return http.get(`/api/files/download/${fileId}`, { responseType: 'blob' })
 }
+
+/** 上传实验文件（学生上传的图片等） */
+export function uploadFile(file: File, experimentId: number, fileType = 'SOURCE_IMAGE') {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('experimentId', String(experimentId))
+  formData.append('fileType', fileType)
+  return http.post<any, { code: number; data: ExperimentFileRecord }>(
+    '/api/files/upload',
+    formData
+  )
+}
