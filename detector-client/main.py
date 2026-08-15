@@ -7,7 +7,11 @@
 
 from __future__ import annotations
 
+import os
 import sys
+
+# 确保能定位到项目目录（无论从哪个目录运行都能正确 import）
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from PySide6.QtWidgets import QApplication
 
