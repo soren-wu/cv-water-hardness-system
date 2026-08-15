@@ -14,6 +14,15 @@
 - DTO 用于请求/响应，entity 用于数据库映射
 - 统一响应格式：R.java（code/message/data）
 
-## 当前进度
-- 第二阶段（Java 后端）基本完成，18 个 API
-- 待完善：Service 层、用户管理 API、班级管理 API、操作日志
+## 当前进度（2026-08-15 检查）
+- ✅ Java 后端：完整（47 个 java 文件，9 个 Controller + 完整 Service 层）
+- ✅ Vue 前端：完整（三端页面 + 路由守卫 + 角色权限，19 个 vue 文件）
+- ❌ Python 检测端（detector-client）：空目录，完全未开始
+- 🟡 视频识别 Demo：纯前端实现（VideoRecognitionDemo.vue），未接后端
+- ❌ color_samples / state_events 采样表：后端无对应实体
+
+## 启动方式
+- 后端：`./mvnw.cmd spring-boot:run --server.port=8080`（注意环境变量 SERVER__PORT=63155 会覆盖端口）
+- 前端：`npm run dev`（5173）
+- 账号：student01 / teacher01 / admin，密码均 123456
+- Git 远程：https://github.com/soren-wu/cv-water-hardness-system.git
