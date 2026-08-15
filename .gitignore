@@ -20,6 +20,11 @@ __pycache__/
 detector-client/cache/
 detector-client/exports/
 
+# PyInstaller 打包产物
+detector-client/build/
+detector-client/dist/
+detector-client/*.spec
+
 # 存储目录
 storage/
 
