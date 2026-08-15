@@ -577,7 +577,7 @@ async function saveResult() {
       purpleRatio: Math.round(result.value.purpleRatio * 10000) / 10000,
       blueRatio: Math.round(result.value.blueRatio * 10000) / 10000,
       stableDurationSeconds: state.value === 'ENDPOINT' ? Math.round(stableElapsed.value) : null,
-      submitStatus: 'SUBMITTED',
+      submitStatus: 'DRAFT',
       remark: '网页版实时摄像头检测结果',
     })
     const expId = res.data.id
@@ -591,7 +591,7 @@ async function saveResult() {
       }
     }
 
-    ElMessage.success('识别结果已保存到实验记录')
+    ElMessage.success('已保存为草稿，请在下方实验记录中提交')
     emit('saved')
     resetDetection()
   } catch (e: any) {

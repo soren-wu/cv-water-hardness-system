@@ -590,10 +590,10 @@ async function saveResult() {
       redRatio: Math.round((trend?.redRatio || 0) * 10000) / 10000,
       purpleRatio: Math.round((trend?.purpleRatio || 0) * 10000) / 10000,
       blueRatio: Math.round((trend?.blueRatio || 0) * 10000) / 10000,
-      submitStatus: 'SUBMITTED',
+      submitStatus: 'DRAFT',
       remark: `前端视频识别 Demo 结果，共 ${frameResults.value.length} 帧`,
     })
-    ElMessage.success('识别结果已保存到实验记录')
+    ElMessage.success('已保存为草稿，请在下方实验记录中提交')
     emit('saved')
   } catch (e: any) {
     ElMessage.error(e?.message || '保存失败，请重试')

@@ -50,6 +50,9 @@ public class ExperimentService {
         }
         if (submitStatus != null && !submitStatus.isEmpty()) {
             wrapper.eq(Experiment::getSubmitStatus, submitStatus);
+        } else if (role == null || !role.contains("STUDENT")) {
+            // 教师/管理员默认排除学生草稿（只看到已提交/已批阅）
+            wrapper.ne(Experiment::getSubmitStatus, "DRAFT");
         }
         wrapper.orderByDesc(Experiment::getCreatedAt);
         return experimentMapper.selectPage(new Page<>(page, size), wrapper);
@@ -65,9 +68,24 @@ public class ExperimentService {
 
     public Experiment submitExperiment(Experiment experiment, Long userId) {
         experiment.setStudentId(userId);
-        experiment.setSubmittedAt(LocalDateTime.now());
-        experiment.setSubmitStatus("SUBMITTED");
+        // 保存为草稿，需学生主动「提交」后教师端才可见
+        experiment.setSubmitStatus("DRAFT");
         experimentMapper.insert(experiment);
+        return experiment;
+    }
+
+    /** 学生主动提交草稿，转为已提交状态（教师端可见）。 */
+    public Experiment submitToTeacher(Long id, Long userId, String role) {
+        Experiment experiment = getExperimentById(id);
+        if (role != null && role.contains("STUDENT") && !experiment.getStudentId().equals(userId)) {
+            throw new BusinessException(403, "无权提交他人实验记录");
+        }
+        if (!"DRAFT".equals(experiment.getSubmitStatus())) {
+            throw new BusinessException(400, "该记录已提交，无需重复提交");
+        }
+        experiment.setSubmitStatus("SUBMITTED");
+        experiment.setSubmittedAt(LocalDateTime.now());
+        experimentMapper.updateById(experiment);
         return experiment;
     }
 
@@ -150,6 +168,9 @@ public class ExperimentService {
         }
         if (submitStatus != null && !submitStatus.isEmpty()) {
             wrapper.eq(Experiment::getSubmitStatus, submitStatus);
+        } else if (role == null || !role.contains("STUDENT")) {
+            // 教师/管理员默认排除学生草稿（只看到已提交/已批阅）
+            wrapper.ne(Experiment::getSubmitStatus, "DRAFT");
         }
         wrapper.orderByDesc(Experiment::getCreatedAt);
         List<Experiment> experiments = experimentMapper.selectList(wrapper);

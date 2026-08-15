@@ -615,10 +615,10 @@ async function saveResult() {
       redRatio: Math.round(result.value.redRatio * 10000) / 10000,
       purpleRatio: Math.round(result.value.purpleRatio * 10000) / 10000,
       blueRatio: Math.round(result.value.blueRatio * 10000) / 10000,
-      submitStatus: 'SUBMITTED',
+      submitStatus: 'DRAFT',
       remark: '前端图片识别 Demo 结果',
     })
-    ElMessage.success('识别结果已保存到实验记录')
+    ElMessage.success('已保存为草稿，请在下方实验记录中提交')
     emit('saved')
   } catch (e: any) {
     ElMessage.error(e?.message || '保存失败，请重试')

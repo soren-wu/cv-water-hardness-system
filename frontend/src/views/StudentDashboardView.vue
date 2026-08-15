@@ -9,7 +9,7 @@ import StatCard from '../components/StatCard.vue'
 import TrendChart from '../components/TrendChart.vue'
 import VideoRecognitionDemo from '../components/VideoRecognitionDemo.vue'
 import { useAuthStore } from '../stores/auth'
-import { getExperimentList, type ExperimentRecord } from '../api/experiment'
+import { getExperimentList, submitExperimentToTeacher, type ExperimentRecord } from '../api/experiment'
 import { getTaskList, type TaskRecord } from '../api/task'
 
 const authStore = useAuthStore()
@@ -59,6 +59,28 @@ function showDetails() {
   showToast('详情功能正在建设中')
 }
 
+function submitTagText(status: string) {
+  if (status === 'DRAFT') return '草稿'
+  if (status === 'REVIEWED') return '已批阅'
+  return '待批阅'
+}
+
+function submitTagClass(status: string) {
+  if (status === 'DRAFT') return 'draft'
+  if (status === 'REVIEWED') return ''
+  return 'pending'
+}
+
+async function submitRecord(record: ExperimentRecord) {
+  try {
+    await submitExperimentToTeacher(record.id)
+    showToast('已提交给教师，等待批阅')
+    await loadData()
+  } catch (e: any) {
+    showToast(e?.message || '提交失败，请重试')
+  }
+}
+
 // --- 数据加载 ---
 async function loadData() {
   loading.value = true
@@ -86,9 +108,9 @@ onMounted(() => {
 
 <template>
   <div class="dashboard-content">
-    <CameraRecognitionDemo @saved="loadData" />
     <ImageRecognitionDemo @saved="loadData" />
     <VideoRecognitionDemo @saved="loadData" />
+    <CameraRecognitionDemo @saved="loadData" />
 
     <section class="overview-grid">
       <article class="course-card">
@@ -192,11 +214,19 @@ onMounted(() => {
                 </td>
                 <td>{{ record.detectMode || '--' }}</td>
                 <td>
-                  <span class="review-tag" :class="{ pending: record.submitStatus !== 'REVIEWED' }">
-                    {{ record.submitStatus === 'REVIEWED' ? '已批阅' : '待批阅' }}
+                  <span class="review-tag" :class="submitTagClass(record.submitStatus)">
+                    {{ submitTagText(record.submitStatus) }}
                   </span>
                 </td>
-                <td><button class="detail-button" type="button" @click="showDetails()">查看详情</button></td>
+                <td>
+                  <button
+                    v-if="record.submitStatus === 'DRAFT'"
+                    class="detail-button submit-button"
+                    type="button"
+                    @click="submitRecord(record)"
+                  >提交</button>
+                  <button v-else class="detail-button" type="button" @click="showDetails()">查看详情</button>
+                </td>
               </tr>
             </tbody>
           </table>

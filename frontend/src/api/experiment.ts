@@ -62,6 +62,13 @@ export function submitExperiment(data: Partial<ExperimentRecord>) {
   )
 }
 
+/** 学生主动提交草稿实验记录给教师 */
+export function submitExperimentToTeacher(id: number) {
+  return http.put<any, { code: number; data: ExperimentRecord }>(
+    `/api/experiments/${id}/submit`
+  )
+}
+
 export function getExperimentFiles(experimentId: number) {
   return http.get<any, { code: number; data: any[] }>(
     `/api/experiments/${experimentId}/files`

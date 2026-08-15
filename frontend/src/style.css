@@ -777,6 +777,22 @@ button {
   font-size: 12px;
 }
 
+.review-tag.draft {
+  border-color: #d4d9e0;
+  color: #6b7787;
+  background: #f1f3f6;
+}
+
+.detail-button.submit-button {
+  border-color: #0876f5;
+  color: #fff;
+  background: #0876f5;
+  cursor: pointer;
+}
+.detail-button.submit-button:hover {
+  background: #0663cf;
+}
+
 .table-footer {
   display: flex;
   align-items: center;

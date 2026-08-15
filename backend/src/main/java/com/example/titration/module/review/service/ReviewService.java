@@ -37,16 +37,20 @@ public class ReviewService {
         if (existing != null) {
             throw new BusinessException(400, "该实验记录已有批阅");
         }
+        Experiment experiment = experimentMapper.selectById(review.getExperimentId());
+        if (experiment == null) {
+            throw new BusinessException(404, "实验记录不存在");
+        }
+        if ("DRAFT".equals(experiment.getSubmitStatus())) {
+            throw new BusinessException(400, "该实验记录尚未提交，无法批阅");
+        }
         review.setTeacherId(teacherId);
         review.setReviewedAt(LocalDateTime.now());
         review.setStatus("REVIEWED");
         reviewMapper.insert(review);
 
-        Experiment experiment = experimentMapper.selectById(review.getExperimentId());
-        if (experiment != null) {
-            experiment.setSubmitStatus("REVIEWED");
-            experimentMapper.updateById(experiment);
-        }
+        experiment.setSubmitStatus("REVIEWED");
+        experimentMapper.updateById(experiment);
         return review;
     }
 

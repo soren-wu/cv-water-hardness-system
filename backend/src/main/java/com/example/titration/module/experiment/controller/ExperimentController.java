@@ -69,6 +69,16 @@ public class ExperimentController {
         return R.ok("更新成功", experimentService.updateExperiment(id, experiment, userId, role));
     }
 
+    @PutMapping("/{id}/submit")
+    @Operation(summary = "提交实验记录给教师")
+    @OperationLog(value = "提交实验", content = "提交实验记录给教师")
+    public R<Experiment> submitToTeacher(@PathVariable Long id) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Long userId = (Long) auth.getPrincipal();
+        String role = auth.getAuthorities().toString();
+        return R.ok("提交成功", experimentService.submitToTeacher(id, userId, role));
+    }
+
     @DeleteMapping("/{id}")
     @Operation(summary = "删除实验记录")
     @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
