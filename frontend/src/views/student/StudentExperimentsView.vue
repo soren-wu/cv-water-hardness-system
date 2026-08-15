@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import AppIcon from '../../components/AppIcon.vue'
 import { useAuthStore } from '../../stores/auth'
 import { getExperimentList, submitExperimentToTeacher, exportExperiments, type ExperimentRecord } from '../../api/experiment'
 
+const router = useRouter()
 const authStore = useAuthStore()
 
 const experiments = ref<ExperimentRecord[]>([])
@@ -57,8 +59,8 @@ async function submitRecord(record: ExperimentRecord) {
   }
 }
 
-function showDetails() {
-  showToast('详情功能正在建设中')
+function goDetail(record: ExperimentRecord) {
+  router.push(`/student/experiments/${record.id}`)
 }
 
 async function handleExport() {
@@ -159,7 +161,7 @@ onMounted(() => {
                   type="button"
                   @click="submitRecord(record)"
                 >提交</button>
-                <button v-else class="detail-button" type="button" @click="showDetails()">查看详情</button>
+                <button v-else class="detail-button" type="button" @click="goDetail(record)">查看详情</button>
               </td>
             </tr>
           </tbody>

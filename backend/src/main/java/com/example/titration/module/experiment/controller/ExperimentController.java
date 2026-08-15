@@ -49,7 +49,10 @@ public class ExperimentController {
     @GetMapping("/{id}")
     @Operation(summary = "获取实验记录详情")
     public R<Experiment> detail(@PathVariable Long id) {
-        return R.ok(experimentService.getExperimentById(id));
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Long userId = (Long) auth.getPrincipal();
+        String role = auth.getAuthorities().toString();
+        return R.ok(experimentService.getExperimentDetail(id, userId, role));
     }
 
     @PostMapping
@@ -91,7 +94,10 @@ public class ExperimentController {
     @GetMapping("/{id}/files")
     @Operation(summary = "获取实验关联文件")
     public R<Object> files(@PathVariable Long id) {
-        return R.ok(experimentService.getExperimentFiles(id));
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Long userId = (Long) auth.getPrincipal();
+        String role = auth.getAuthorities().toString();
+        return R.ok(experimentService.getExperimentFiles(id, userId, role));
     }
 
     @PostMapping("/{id}/samples")
@@ -103,7 +109,10 @@ public class ExperimentController {
     @GetMapping("/{id}/samples")
     @Operation(summary = "获取实验 HSV 采样数据")
     public R<List<ColorSample>> samples(@PathVariable Long id) {
-        return R.ok(experimentService.getSamples(id));
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Long userId = (Long) auth.getPrincipal();
+        String role = auth.getAuthorities().toString();
+        return R.ok(experimentService.getSamples(id, userId, role));
     }
 
     @PostMapping("/{id}/events")
@@ -115,7 +124,10 @@ public class ExperimentController {
     @GetMapping("/{id}/events")
     @Operation(summary = "获取实验状态事件")
     public R<List<StateEvent>> events(@PathVariable Long id) {
-        return R.ok(experimentService.getEvents(id));
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Long userId = (Long) auth.getPrincipal();
+        String role = auth.getAuthorities().toString();
+        return R.ok(experimentService.getEvents(id, userId, role));
     }
 
     @GetMapping("/export")

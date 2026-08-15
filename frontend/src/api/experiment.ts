@@ -96,3 +96,53 @@ export function submitSamples(experimentId: number, samples: ColorSamplePayload[
     samples
   )
 }
+
+export interface ColorSampleRecord {
+  id: number
+  experimentId: number
+  sampleTime: string
+  frameIndex: number
+  hue: number
+  saturation: number
+  brightness: number
+  confidence: number
+  stateLabel: string
+}
+
+export interface StateEventRecord {
+  id: number
+  experimentId: number
+  eventType: string
+  eventMessage: string
+  occurredAt: string
+}
+
+export interface ExperimentFileRecord {
+  id: number
+  experimentId: number
+  fileType: string
+  originalName: string
+  storagePath: string
+  contentType: string
+  fileSize: number
+  createdAt: string
+}
+
+/** 获取实验 HSV 采样数据 */
+export function getSamples(experimentId: number) {
+  return http.get<any, { code: number; data: ColorSampleRecord[] }>(
+    `/api/experiments/${experimentId}/samples`
+  )
+}
+
+/** 获取实验状态事件 */
+export function getEvents(experimentId: number) {
+  return http.get<any, { code: number; data: StateEventRecord[] }>(
+    `/api/experiments/${experimentId}/events`
+  )
+}
+
+/** 下载实验文件（关键帧等），返回 Blob */
+export function downloadFile(fileId: number) {
+  return http.get(`/api/files/download/${fileId}`, { responseType: 'blob' })
+}

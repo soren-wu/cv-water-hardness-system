@@ -66,6 +66,20 @@ public class ExperimentService {
         return experiment;
     }
 
+    /** 获取实验详情（学生只能查看自己的记录）。 */
+    public Experiment getExperimentDetail(Long id, Long userId, String role) {
+        Experiment experiment = getExperimentById(id);
+        checkAccess(experiment, userId, role);
+        return experiment;
+    }
+
+    /** 校验访问权限：学生只能访问自己的实验记录。 */
+    private void checkAccess(Experiment experiment, Long userId, String role) {
+        if (role != null && role.contains("STUDENT") && !experiment.getStudentId().equals(userId)) {
+            throw new BusinessException(403, "无权查看他人实验记录");
+        }
+    }
+
     public Experiment submitExperiment(Experiment experiment, Long userId) {
         experiment.setStudentId(userId);
         // 保存为草稿，需学生主动「提交」后教师端才可见
@@ -105,7 +119,8 @@ public class ExperimentService {
         }
     }
 
-    public List<ExperimentFile> getExperimentFiles(Long experimentId) {
+    public List<ExperimentFile> getExperimentFiles(Long experimentId, Long userId, String role) {
+        checkAccess(getExperimentById(experimentId), userId, role);
         LambdaQueryWrapper<ExperimentFile> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ExperimentFile::getExperimentId, experimentId);
         return experimentFileMapper.selectList(wrapper);
@@ -126,7 +141,8 @@ public class ExperimentService {
         return count;
     }
 
-    public List<ColorSample> getSamples(Long experimentId) {
+    public List<ColorSample> getSamples(Long experimentId, Long userId, String role) {
+        checkAccess(getExperimentById(experimentId), userId, role);
         LambdaQueryWrapper<ColorSample> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ColorSample::getExperimentId, experimentId)
                 .orderByAsc(ColorSample::getFrameIndex);
@@ -148,7 +164,8 @@ public class ExperimentService {
         return count;
     }
 
-    public List<StateEvent> getEvents(Long experimentId) {
+    public List<StateEvent> getEvents(Long experimentId, Long userId, String role) {
+        checkAccess(getExperimentById(experimentId), userId, role);
         LambdaQueryWrapper<StateEvent> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(StateEvent::getExperimentId, experimentId)
                 .orderByAsc(StateEvent::getOccurredAt);

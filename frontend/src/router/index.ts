@@ -5,6 +5,7 @@ import StudentOverviewView from '../views/student/StudentOverviewView.vue'
 import StudentTasksView from '../views/student/StudentTasksView.vue'
 import StudentExperimentsView from '../views/student/StudentExperimentsView.vue'
 import StudentFeedbackView from '../views/student/StudentFeedbackView.vue'
+import ExperimentDetailView from '../views/student/ExperimentDetailView.vue'
 import TeacherDashboardView from '../views/teacher/TeacherDashboardView.vue'
 import TeacherTasksView from '../views/teacher/TeacherTasksView.vue'
 import TeacherExperimentsView from '../views/teacher/TeacherExperimentsView.vue'
@@ -52,6 +53,12 @@ const router = createRouter({
           name: 'student-experiments',
           component: StudentExperimentsView,
           meta: { title: '实验记录', role: 'STUDENT' },
+        },
+        {
+          path: 'experiments/:id',
+          name: 'student-experiment-detail',
+          component: ExperimentDetailView,
+          meta: { title: '实验详情', role: 'STUDENT' },
         },
         {
           path: 'feedback',
