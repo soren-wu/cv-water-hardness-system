@@ -22,8 +22,9 @@ public class ReviewController {
 
     @GetMapping
     @Operation(summary = "获取批阅列表")
-    public R<Object> list(@RequestParam(required = false) String status) {
-        return R.ok(reviewService.listReviews(status));
+    public R<Object> list(@RequestParam(required = false) String status,
+                          @RequestParam(required = false) Long experimentId) {
+        return R.ok(reviewService.listReviews(status, experimentId));
     }
 
     @PostMapping

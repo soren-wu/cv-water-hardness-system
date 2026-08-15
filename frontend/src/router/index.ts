@@ -1,7 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import LoginView from '../views/LoginView.vue'
 import MainLayout from '../layouts/MainLayout.vue'
-import StudentDashboardView from '../views/StudentDashboardView.vue'
+import StudentOverviewView from '../views/student/StudentOverviewView.vue'
+import StudentTasksView from '../views/student/StudentTasksView.vue'
+import StudentExperimentsView from '../views/student/StudentExperimentsView.vue'
+import StudentFeedbackView from '../views/student/StudentFeedbackView.vue'
 import TeacherDashboardView from '../views/teacher/TeacherDashboardView.vue'
 import TeacherTasksView from '../views/teacher/TeacherTasksView.vue'
 import TeacherExperimentsView from '../views/teacher/TeacherExperimentsView.vue'
@@ -35,25 +38,25 @@ const router = createRouter({
         {
           path: 'dashboard',
           name: 'student-dashboard',
-          component: StudentDashboardView,
+          component: StudentOverviewView,
           meta: { title: '学习概览', role: 'STUDENT' },
         },
         {
           path: 'tasks',
           name: 'student-tasks',
-          component: StudentDashboardView,
+          component: StudentTasksView,
           meta: { title: '实验任务', role: 'STUDENT' },
         },
         {
           path: 'experiments',
           name: 'student-experiments',
-          component: StudentDashboardView,
+          component: StudentExperimentsView,
           meta: { title: '实验记录', role: 'STUDENT' },
         },
         {
           path: 'feedback',
           name: 'student-feedback',
-          component: StudentDashboardView,
+          component: StudentFeedbackView,
           meta: { title: '教师反馈', role: 'STUDENT' },
         },
       ],

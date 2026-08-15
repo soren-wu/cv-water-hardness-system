@@ -20,10 +20,13 @@ public class ReviewService {
     private final ReviewMapper reviewMapper;
     private final ExperimentMapper experimentMapper;
 
-    public List<Review> listReviews(String status) {
+    public List<Review> listReviews(String status, Long experimentId) {
         LambdaQueryWrapper<Review> wrapper = new LambdaQueryWrapper<>();
         if (status != null && !status.isEmpty()) {
             wrapper.eq(Review::getStatus, status);
+        }
+        if (experimentId != null) {
+            wrapper.eq(Review::getExperimentId, experimentId);
         }
         wrapper.orderByDesc(Review::getCreatedAt);
         return reviewMapper.selectList(wrapper);
