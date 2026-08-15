@@ -431,6 +431,19 @@ function handleVideoMetadata() {
   syncPlaybackState()
 }
 
+const videoError = ref('')
+
+function handleVideoError() {
+  videoError.value = '视频编码不受浏览器支持，无法解码画面。请用格式工厂 / ffmpeg 转成 H.264 编码的 MP4 后重新上传。'
+  finalStatus.value = '颜色异常'
+  summaryMessage.value = videoError.value
+}
+
+function handleVideoLoadedData() {
+  // 首帧数据成功解码，说明编码兼容
+  videoError.value = ''
+}
+
 function seekPreviewVideo(event: Event) {
   const video = previewVideo.value
   if (!video) return
@@ -516,6 +529,7 @@ function handleVideoChange(event: Event) {
   if (videoUrl.value) URL.revokeObjectURL(videoUrl.value)
   fileName.value = file.name
   videoUrl.value = URL.createObjectURL(file)
+  videoError.value = ''
   frameResults.value = []
   progress.value = 0
   playbackTime.value = 0
@@ -631,9 +645,12 @@ async function saveResult() {
               :src="videoUrl"
               controls
               @loadedmetadata="handleVideoMetadata"
+              @loadeddata="handleVideoLoadedData"
+              @error="handleVideoError"
               @timeupdate="syncPlaybackState"
               @seeked="syncPlaybackState"
             />
+            <div v-if="videoError" class="video-error-overlay">{{ videoError }}</div>
             <div class="video-roi-box adjustable-roi-box" :style="roiStyle" @mousedown="startRoiAdjust($event, 'move')">
               <button class="roi-resize-handle" type="button" aria-label="调整 ROI 大小" @mousedown="startRoiAdjust($event, 'resize')"></button>
             </div>
