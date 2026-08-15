@@ -1652,7 +1652,7 @@ button {
 
 .video-current-status strong {
   flex: 0 0 auto;
-  font-size: 23px;
+  font-size: 20px;
   white-space: nowrap;
 }
 
@@ -1729,14 +1729,14 @@ button {
 
 .video-frame-stats span {
   color: #64748b;
-  font-size: 13px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
 .video-frame-stats strong {
   color: #152238;
-  font-size: 21px;
-  line-height: 1.1;
+  font-size: 17px;
+  line-height: 1.15;
 }
 
 .video-live-metrics {
