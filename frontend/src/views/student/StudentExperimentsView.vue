@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import AppIcon from '../../components/AppIcon.vue'
 import { useAuthStore } from '../../stores/auth'
-import { getExperimentList, submitExperimentToTeacher, type ExperimentRecord } from '../../api/experiment'
+import { getExperimentList, submitExperimentToTeacher, exportExperiments, type ExperimentRecord } from '../../api/experiment'
 
 const authStore = useAuthStore()
 
@@ -60,6 +61,24 @@ function showDetails() {
   showToast('详情功能正在建设中')
 }
 
+async function handleExport() {
+  try {
+    const res = await exportExperiments()
+    const blob = res.data as Blob
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `我的实验记录_${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    ElMessage.success('导出成功')
+  } catch {
+    ElMessage.error('导出失败')
+  }
+}
+
 async function loadData() {
   loading.value = true
   try {
@@ -89,9 +108,14 @@ onMounted(() => {
           <h2 class="panel-title">我的实验记录</h2>
           <p class="records-subtitle">保存后的记录为草稿，需主动提交后教师才能看到并批阅。</p>
         </div>
-        <button class="btn-refresh" type="button" @click="loadData">
-          <AppIcon name="refresh" :size="16" /> 刷新
-        </button>
+        <div class="records-actions">
+          <button class="btn-refresh" type="button" @click="loadData">
+            <AppIcon name="refresh" :size="16" /> 刷新
+          </button>
+          <button class="btn-refresh btn-export" type="button" :disabled="experiments.length === 0" @click="handleExport">
+            <AppIcon name="download" :size="16" /> 导出 CSV
+          </button>
+        </div>
       </div>
 
       <div v-if="loading" class="records-loading">加载中...</div>
@@ -183,5 +207,19 @@ onMounted(() => {
 .btn-refresh:hover {
   border-color: #3b6cb4;
   color: #3b6cb4;
+}
+.records-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.btn-export:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-export:disabled:hover {
+  border-color: #dde1e6;
+  color: #5a7a9a;
 }
 </style>
