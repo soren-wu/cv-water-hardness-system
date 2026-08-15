@@ -46,7 +46,7 @@ const histogramCanvas = ref<HTMLCanvasElement | null>(null)
 // 光照补偿增益（灰度世界白平衡），展示用
 const balanceGain = ref<{ r: number; g: number; b: number } | null>(null)
 // 采样统计：有效格 / 排除反光格
-const samplingInfo = ref({ totalCells: 0, usedCells: 0 })
+const samplingInfo = ref({ totalCells: 0, usedCells: 0, focused: false })
 
 // 图片缓存（避免实时分析时重复加载）
 let cachedImage: HTMLImageElement | null = null
@@ -161,6 +161,49 @@ function computeWhiteBalance(data: Uint8ClampedArray): { r: number; g: number; b
 
   const clampGain = (g: number) => Math.min(1.25, Math.max(0.8, g))
   return { r: clampGain(gray / rAvg), g: clampGain(gray / gAvg), b: clampGain(gray / bAvg) }
+}
+
+/**
+ * 自动聚焦溶液主体：在 ROI 内找高饱和彩色像素的分布中心与范围，
+ * 返回聚焦窗口（ROI 局部坐标），用于排除背景、降低框选位置敏感度。
+ */
+function findSolutionFocus(data: Uint8ClampedArray, w: number, h: number) {
+  let sumX = 0, sumY = 0, n = 0
+  let minX = w, maxX = 0, minY = h, maxY = 0
+  const step = 2 // 降采样加速
+  for (let y = 0; y < h; y += step) {
+    for (let x = 0; x < w; x += step) {
+      const idx = (y * w + x) * 4
+      const r = data[idx], g = data[idx + 1], b = data[idx + 2]
+      const { h: hue, s } = rgbToHsv(r, g, b)
+      // 高饱和且色相落在红/紫/蓝区间 → 视为溶液像素
+      const inColorRange =
+        inRange(hue, COLOR_THRESHOLD.redHMin, COLOR_THRESHOLD.redHMax) ||
+        inRange(hue, COLOR_THRESHOLD.purpleHMin, COLOR_THRESHOLD.purpleHMax) ||
+        inRange(hue, COLOR_THRESHOLD.blueHMin, COLOR_THRESHOLD.blueHMax)
+      if (s >= 0.25 && inColorRange) {
+        sumX += x
+        sumY += y
+        n++
+        if (x < minX) minX = x
+        if (x > maxX) maxX = x
+        if (y < minY) minY = y
+        if (y > maxY) maxY = y
+      }
+    }
+  }
+  // 溶液像素占比不足（<1%），判定没有明显溶液主体，返回 null 走全 ROI
+  if (n < (w / step) * (h / step) * 0.01) return null
+
+  const cx = sumX / n
+  const cy = sumY / n
+  const spreadX = Math.max(maxX - minX, w * 0.3)
+  const spreadY = Math.max(maxY - minY, h * 0.3)
+  const x0 = Math.max(0, Math.floor(cx - spreadX / 2))
+  const y0 = Math.max(0, Math.floor(cy - spreadY / 2))
+  const x1 = Math.min(w, Math.ceil(cx + spreadX / 2))
+  const y1 = Math.min(h, Math.ceil(cy + spreadY / 2))
+  return { x0, y0, x1, y1 }
 }
 
 /** 分类颜色，返回主导颜色，同时更新直方图。 */
@@ -335,10 +378,18 @@ function analyzeWithImage(image: HTMLImageElement) {
   const gain = computeWhiteBalance(data)
   balanceGain.value = gain
 
+  // 1.5 自动聚焦溶液主体（排除背景，降低框选位置敏感度）
+  const focus = findSolutionFocus(data, roiPx.w, roiPx.h)
+  const sample = focus
+    ? { x0: focus.x0, y0: focus.y0, x1: focus.x1, y1: focus.y1 }
+    : { x0: 0, y0: 0, x1: roiPx.w, y1: roiPx.h }
+  const sw = sample.x1 - sample.x0
+  const sh = sample.y1 - sample.y0
+
   // 2. 分区采样 + 反光排除（5×5 网格，过亮/过暗格子跳过）
   const grid = 5
-  const cellW = Math.max(1, Math.floor(roiPx.w / grid))
-  const cellH = Math.max(1, Math.floor(roiPx.h / grid))
+  const cellW = Math.max(1, Math.floor(sw / grid))
+  const cellH = Math.max(1, Math.floor(sh / grid))
   const bins = new Array(72).fill(0)
 
   let count = 0
@@ -357,10 +408,10 @@ function analyzeWithImage(image: HTMLImageElement) {
   for (let cy = 0; cy < grid; cy++) {
     for (let cx = 0; cx < grid; cx++) {
       totalCells++
-      const x0 = cx * cellW
-      const y0 = cy * cellH
-      const x1 = Math.min(roiPx.w, x0 + cellW)
-      const y1 = Math.min(roiPx.h, y0 + cellH)
+      const x0 = sample.x0 + cx * cellW
+      const y0 = sample.y0 + cy * cellH
+      const x1 = Math.min(sample.x1, x0 + cellW)
+      const y1 = Math.min(sample.y1, y0 + cellH)
 
       // 统计该格平均亮度，反光格（整体过亮）跳过
       let cellVSum = 0
@@ -413,7 +464,7 @@ function analyzeWithImage(image: HTMLImageElement) {
     }
   }
 
-  samplingInfo.value = { totalCells, usedCells }
+  samplingInfo.value = { totalCells, usedCells, focused: focus !== null }
   histogram.value = bins
 
   if (count === 0) {
@@ -648,6 +699,7 @@ async function saveResult() {
             <span>色相分布（0-360°）</span>
             <span v-if="samplingInfo.usedCells" class="sampling-hint">
               有效采样 {{ samplingInfo.usedCells }}/{{ samplingInfo.totalCells }} 格
+              <template v-if="samplingInfo.focused">· 已自动聚焦溶液</template>
               <template v-if="balanceGain">· 已白平衡</template>
             </span>
           </div>
@@ -655,7 +707,7 @@ async function saveResult() {
           <div class="histogram-legend">
             <span><i class="legend-dot red"></i>酒红 330-25°</span>
             <span><i class="legend-dot purple"></i>蓝紫 235-315°</span>
-            <span><i class="legend-dot blue"></i>纯蓝 185-240°</span>
+            <span><i class="legend-dot blue"></i>纯蓝 185-235°</span>
           </div>
         </div>
 
