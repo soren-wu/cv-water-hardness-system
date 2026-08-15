@@ -11,6 +11,15 @@ frontend/node_modules/
 *.log
 *.tmp
 
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# 检测端运行时产物
+detector-client/cache/
+detector-client/exports/
+
 # 存储目录
 storage/
 
