@@ -85,8 +85,8 @@ onMounted(() => {
 
 <template>
   <div class="dashboard-content">
-    <ImageRecognitionDemo />
-    <VideoRecognitionDemo />
+    <ImageRecognitionDemo @saved="loadData" />
+    <VideoRecognitionDemo @saved="loadData" />
 
     <section class="overview-grid">
       <article class="course-card">

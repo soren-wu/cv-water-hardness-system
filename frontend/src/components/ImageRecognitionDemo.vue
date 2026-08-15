@@ -4,6 +4,8 @@ import { submitExperiment } from '../api/experiment'
 import { getTaskList } from '../api/task'
 import { ElMessage } from 'element-plus'
 
+const emit = defineEmits<{ (e: 'saved'): void }>()
+
 type RecognitionStatus = '未识别' | '滴定进行中' | '临近终点' | '滴定终点' | '颜色异常'
 type StatusTone = 'muted' | 'red' | 'purple' | 'blue' | 'warning'
 
@@ -617,6 +619,7 @@ async function saveResult() {
       remark: '前端图片识别 Demo 结果',
     })
     ElMessage.success('识别结果已保存到实验记录')
+    emit('saved')
   } catch (e: any) {
     ElMessage.error(e?.message || '保存失败，请重试')
   } finally {

@@ -4,6 +4,8 @@ import { submitExperiment } from '../api/experiment'
 import { getTaskList } from '../api/task'
 import { ElMessage } from 'element-plus'
 
+const emit = defineEmits<{ (e: 'saved'): void }>()
+
 type RecognitionStatus = '滴定进行中' | '临近终点' | '滴定终点' | '颜色异常'
 
 interface FrameResult {
@@ -592,6 +594,7 @@ async function saveResult() {
       remark: `前端视频识别 Demo 结果，共 ${frameResults.value.length} 帧`,
     })
     ElMessage.success('识别结果已保存到实验记录')
+    emit('saved')
   } catch (e: any) {
     ElMessage.error(e?.message || '保存失败，请重试')
   } finally {
