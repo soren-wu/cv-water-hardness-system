@@ -111,21 +111,15 @@ const COLOR_THRESHOLD = {
 }
 
 function isRedLike(r: number, g: number, b: number, h: number, s: number) {
-  const redDominant = r >= g * 1.05 && r >= b * 1.05
-  const hueMatches = inRange(h, COLOR_THRESHOLD.redHMin, COLOR_THRESHOLD.redHMax)
-  return s >= COLOR_THRESHOLD.minSaturation && redDominant && hueMatches
+  return s >= COLOR_THRESHOLD.minSaturation && inRange(h, COLOR_THRESHOLD.redHMin, COLOR_THRESHOLD.redHMax)
 }
 
 function isPurpleLike(r: number, g: number, b: number, h: number, s: number) {
-  const redBlueMixed = r >= g * 1.02 && b >= g * 1.02
-  const hueMatches = inRange(h, COLOR_THRESHOLD.purpleHMin, COLOR_THRESHOLD.purpleHMax)
-  return s >= COLOR_THRESHOLD.minSaturation && redBlueMixed && hueMatches
+  return s >= COLOR_THRESHOLD.minSaturation && inRange(h, COLOR_THRESHOLD.purpleHMin, COLOR_THRESHOLD.purpleHMax)
 }
 
 function isBlueLike(r: number, g: number, b: number, h: number, s: number) {
-  const blueDominant = b >= r * 1.1 && b >= g * 0.95
-  const hueMatches = inRange(h, COLOR_THRESHOLD.blueHMin, COLOR_THRESHOLD.blueHMax)
-  return s >= COLOR_THRESHOLD.minSaturation && blueDominant && hueMatches
+  return s >= COLOR_THRESHOLD.minSaturation && inRange(h, COLOR_THRESHOLD.blueHMin, COLOR_THRESHOLD.blueHMax)
 }
 
 /**
