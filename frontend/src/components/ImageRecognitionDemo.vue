@@ -225,11 +225,11 @@ function classifyColor(payload: {
   const { hue, saturation, value, redRatio, purpleRatio, blueRatio, otherRatio, purity } = payload
   const dominant = Math.max(redRatio, purpleRatio, blueRatio)
 
-  // 置信度 = 主导占比 × 颜色纯度加权，反映「颜色有多占主导、有多纯」
-  const confidenceOf = (ratio: number) => Math.round(Math.min(99, ratio * 100 * (0.72 + 0.28 * purity)))
+  // 置信度 = 主导占比 × 纯度微调（纯度影响减小，更贴近实际占比）
+  const confidenceOf = (ratio: number) => Math.round(Math.min(99, ratio * 100 * (0.9 + 0.1 * purity)))
 
-  // 按主导颜色判断状态（纯蓝 → 终点、蓝紫 → 临近、酒红 → 进行中）
-  if (blueRatio >= purpleRatio && blueRatio >= redRatio && blueRatio >= 0.3) {
+  // 按主导颜色 + 显著优势判断（主导颜色需明显领先次优，边界更清晰）
+  if (blueRatio >= 0.3 && blueRatio >= purpleRatio * 1.3 && blueRatio >= redRatio * 1.3) {
     return {
       status: '滴定终点',
       tone: 'blue',
@@ -239,7 +239,7 @@ function classifyColor(payload: {
     }
   }
 
-  if (purpleRatio >= redRatio && purpleRatio >= 0.22) {
+  if (purpleRatio >= 0.22 && purpleRatio >= redRatio * 1.2 && purpleRatio >= blueRatio * 1.1) {
     return {
       status: '临近终点',
       tone: 'purple',
@@ -249,7 +249,18 @@ function classifyColor(payload: {
     }
   }
 
-  if (redRatio >= 0.2) {
+  // 蓝紫混合（蓝+紫都较高、红很低）→ 过渡色
+  if (blueRatio + purpleRatio >= 0.45 && redRatio < 0.2 && blueRatio >= 0.15 && purpleRatio >= 0.15) {
+    return {
+      status: '临近终点',
+      tone: 'purple',
+      confidence: confidenceOf(Math.max(blueRatio, purpleRatio)),
+      hue, saturation, value, redRatio, purpleRatio, blueRatio, otherRatio,
+      message: '识别到蓝紫混合过渡色，溶液正由酒红色向纯蓝色转变，接近滴定终点。',
+    }
+  }
+
+  if (redRatio >= 0.2 && redRatio >= purpleRatio && redRatio >= blueRatio) {
     return {
       status: '滴定进行中',
       tone: 'red',
