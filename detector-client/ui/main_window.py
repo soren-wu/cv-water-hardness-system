@@ -325,6 +325,14 @@ class MainWindow(QMainWindow):
         try:
             exp = self.client.submit_experiment(payload)
             exp_id = exp.get("id")
+            # 上传 HSV 采样数据
+            sample_payload = self._build_sample_payload()
+            if sample_payload:
+                self.client.save_samples(exp_id, sample_payload)
+            # 上传状态事件
+            event_payload = self._build_event_payload()
+            if event_payload:
+                self.client.save_events(exp_id, event_payload)
             # 上传关键帧
             for kf in self._keyframes:
                 try:
@@ -339,11 +347,39 @@ class MainWindow(QMainWindow):
                  for e in self.state_machine.events],
                 f"{self.config.export_dir}/events.csv",
             )
-            QMessageBox.information(self, "上传成功", f"实验结果已上传（记录 ID {exp_id}）")
+            QMessageBox.information(
+                self, "上传成功",
+                f"实验结果已上传（记录 ID {exp_id}）\n采样数据 {len(sample_payload)} 条，状态事件 {len(event_payload)} 条",
+            )
         except Exception as e:
             # 网络异常 → 本地缓存
             self.cache.save(payload, self._keyframes)
             QMessageBox.warning(self, "网络异常", f"上传失败，已本地缓存，网络恢复后补传。\n{str(e)}")
+
+    def _build_sample_payload(self) -> list[dict]:
+        """把检测采样记录转成 color_samples 表字段。"""
+        payload = []
+        for idx, s in enumerate(self._samples):
+            payload.append({
+                "frameIndex": idx,
+                "hue": s.get("hue", 0),
+                "saturation": round(s.get("saturation", 0) / 255.0, 4),
+                "brightness": round(s.get("brightness", 0) / 255.0, 4),
+                "confidence": s.get("confidence", 0),
+                "stateLabel": s.get("state", "IDLE"),
+            })
+        return payload
+
+    def _build_event_payload(self) -> list[dict]:
+        """把状态机事件转成 state_events 表字段。"""
+        payload = []
+        for e in self.state_machine.events:
+            payload.append({
+                "eventType": e.event_type,
+                "eventMessage": e.message,
+                "occurredAt": datetime.fromtimestamp(e.timestamp).strftime("%Y-%m-%d %H:%M:%S"),
+            })
+        return payload
 
     @staticmethod
     def _matched_color(state: DetectorState) -> str:

@@ -2,7 +2,9 @@ package com.example.titration.module.experiment.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.titration.common.result.R;
+import com.example.titration.module.experiment.entity.ColorSample;
 import com.example.titration.module.experiment.entity.Experiment;
+import com.example.titration.module.experiment.entity.StateEvent;
 import com.example.titration.module.experiment.service.ExperimentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -11,6 +13,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/experiments")
@@ -69,5 +73,29 @@ public class ExperimentController {
     @Operation(summary = "获取实验关联文件")
     public R<Object> files(@PathVariable Long id) {
         return R.ok(experimentService.getExperimentFiles(id));
+    }
+
+    @PostMapping("/{id}/samples")
+    @Operation(summary = "批量保存 HSV 采样数据")
+    public R<Integer> saveSamples(@PathVariable Long id, @RequestBody List<ColorSample> samples) {
+        return R.ok("保存成功", experimentService.saveSamples(id, samples));
+    }
+
+    @GetMapping("/{id}/samples")
+    @Operation(summary = "获取实验 HSV 采样数据")
+    public R<List<ColorSample>> samples(@PathVariable Long id) {
+        return R.ok(experimentService.getSamples(id));
+    }
+
+    @PostMapping("/{id}/events")
+    @Operation(summary = "批量保存状态事件")
+    public R<Integer> saveEvents(@PathVariable Long id, @RequestBody List<StateEvent> events) {
+        return R.ok("保存成功", experimentService.saveEvents(id, events));
+    }
+
+    @GetMapping("/{id}/events")
+    @Operation(summary = "获取实验状态事件")
+    public R<List<StateEvent>> events(@PathVariable Long id) {
+        return R.ok(experimentService.getEvents(id));
     }
 }

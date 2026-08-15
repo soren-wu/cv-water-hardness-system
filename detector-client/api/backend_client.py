@@ -89,6 +89,30 @@ class BackendClient:
             raise RuntimeError(body.get("message", "提交失败"))
         return body["data"]
 
+    def save_samples(self, experiment_id: int, samples: list[dict]) -> int:
+        """批量上传 HSV 采样数据到 /api/experiments/{id}/samples。"""
+        resp = self._client.post(
+            f"{self.base_url}/api/experiments/{experiment_id}/samples",
+            json=samples, headers=self._headers(),
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        if body.get("code") != 200:
+            raise RuntimeError(body.get("message", "采样数据上传失败"))
+        return body.get("data", 0)
+
+    def save_events(self, experiment_id: int, events: list[dict]) -> int:
+        """批量上传状态事件到 /api/experiments/{id}/events。"""
+        resp = self._client.post(
+            f"{self.base_url}/api/experiments/{experiment_id}/events",
+            json=events, headers=self._headers(),
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        if body.get("code") != 200:
+            raise RuntimeError(body.get("message", "状态事件上传失败"))
+        return body.get("data", 0)
+
     def upload_file(self, experiment_id: int, file_path: str, file_type: str = "KEYFRAME") -> dict:
         """上传关键帧/文件到 /api/files/upload。"""
         with open(file_path, "rb") as f:

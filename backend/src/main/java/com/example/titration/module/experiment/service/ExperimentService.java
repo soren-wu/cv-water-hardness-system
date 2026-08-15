@@ -3,10 +3,14 @@ package com.example.titration.module.experiment.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.titration.common.exception.BusinessException;
+import com.example.titration.module.experiment.entity.ColorSample;
 import com.example.titration.module.experiment.entity.Experiment;
 import com.example.titration.module.experiment.entity.ExperimentFile;
+import com.example.titration.module.experiment.entity.StateEvent;
+import com.example.titration.module.experiment.mapper.ColorSampleMapper;
 import com.example.titration.module.experiment.mapper.ExperimentMapper;
 import com.example.titration.module.experiment.mapper.ExperimentFileMapper;
+import com.example.titration.module.experiment.mapper.StateEventMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +23,8 @@ public class ExperimentService {
 
     private final ExperimentMapper experimentMapper;
     private final ExperimentFileMapper experimentFileMapper;
+    private final ColorSampleMapper colorSampleMapper;
+    private final StateEventMapper stateEventMapper;
 
     public Page<Experiment> listExperiments(int page, int size, Long taskId,
                                              String recognitionStatus, String submitStatus,
@@ -76,5 +82,49 @@ public class ExperimentService {
         LambdaQueryWrapper<ExperimentFile> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ExperimentFile::getExperimentId, experimentId);
         return experimentFileMapper.selectList(wrapper);
+    }
+
+    // ---------- HSV 采样数据 ----------
+
+    public int saveSamples(Long experimentId, List<ColorSample> samples) {
+        if (samples == null || samples.isEmpty()) {
+            return 0;
+        }
+        samples.forEach(s -> s.setExperimentId(experimentId));
+        int count = 0;
+        for (ColorSample sample : samples) {
+            colorSampleMapper.insert(sample);
+            count++;
+        }
+        return count;
+    }
+
+    public List<ColorSample> getSamples(Long experimentId) {
+        LambdaQueryWrapper<ColorSample> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ColorSample::getExperimentId, experimentId)
+                .orderByAsc(ColorSample::getFrameIndex);
+        return colorSampleMapper.selectList(wrapper);
+    }
+
+    // ---------- 状态事件 ----------
+
+    public int saveEvents(Long experimentId, List<StateEvent> events) {
+        if (events == null || events.isEmpty()) {
+            return 0;
+        }
+        events.forEach(e -> e.setExperimentId(experimentId));
+        int count = 0;
+        for (StateEvent event : events) {
+            stateEventMapper.insert(event);
+            count++;
+        }
+        return count;
+    }
+
+    public List<StateEvent> getEvents(Long experimentId) {
+        LambdaQueryWrapper<StateEvent> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(StateEvent::getExperimentId, experimentId)
+                .orderByAsc(StateEvent::getOccurredAt);
+        return stateEventMapper.selectList(wrapper);
     }
 }
