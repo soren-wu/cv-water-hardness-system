@@ -474,7 +474,7 @@ watchEffect(() => {
 .page-content {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 24px;
+  padding: 20px 24px 48px;
 }
 
 /* ===== 修改密码弹窗 ===== */

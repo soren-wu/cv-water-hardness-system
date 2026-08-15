@@ -512,6 +512,14 @@ function drawHistogram() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
+    // 让 canvas 内部分辨率匹配实际显示宽度，避免直方图被压缩模糊
+    const displayW = canvas.clientWidth || canvas.width
+    const displayH = canvas.clientHeight || canvas.height
+    if (canvas.width !== displayW || canvas.height !== displayH) {
+      canvas.width = displayW
+      canvas.height = displayH
+    }
+
     const w = canvas.width
     const h = canvas.height
     ctx.clearRect(0, 0, w, h)
