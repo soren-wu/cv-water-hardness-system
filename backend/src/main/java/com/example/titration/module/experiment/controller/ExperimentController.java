@@ -6,6 +6,7 @@ import com.example.titration.module.experiment.entity.ColorSample;
 import com.example.titration.module.experiment.entity.Experiment;
 import com.example.titration.module.experiment.entity.StateEvent;
 import com.example.titration.module.experiment.service.ExperimentService;
+import com.example.titration.module.log.annotation.OperationLog;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
@@ -53,6 +54,7 @@ public class ExperimentController {
 
     @PostMapping
     @Operation(summary = "提交实验记录")
+    @OperationLog(value = "提交实验", content = "提交实验记录")
     public R<Experiment> submit(@RequestBody Experiment experiment) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return R.ok("提交成功", experimentService.submitExperiment(experiment, (Long) auth.getPrincipal()));
@@ -70,6 +72,7 @@ public class ExperimentController {
     @DeleteMapping("/{id}")
     @Operation(summary = "删除实验记录")
     @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    @OperationLog(value = "删除实验", content = "删除实验记录")
     public R<Void> delete(@PathVariable Long id) {
         experimentService.deleteExperiment(id);
         return R.ok("删除成功");

@@ -9,6 +9,7 @@ import TeacherStatisticsView from '../views/teacher/TeacherStatisticsView.vue'
 import AdminUsersView from '../views/admin/AdminUsersView.vue'
 import AdminClassesView from '../views/admin/AdminClassesView.vue'
 import AdminThresholdView from '../views/admin/AdminThresholdView.vue'
+import AdminLogsView from '../views/admin/AdminLogsView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -110,6 +111,12 @@ const router = createRouter({
           name: 'admin-thresholds',
           component: AdminThresholdView,
           meta: { title: '阈值模板' },
+        },
+        {
+          path: 'logs',
+          name: 'admin-logs',
+          component: AdminLogsView,
+          meta: { title: '操作日志' },
         },
       ],
     },

@@ -5,6 +5,7 @@ import com.example.titration.common.exception.BusinessException;
 import com.example.titration.module.auth.dto.LoginRequest;
 import com.example.titration.module.auth.dto.LoginResponse;
 import com.example.titration.module.auth.dto.UserVO;
+import com.example.titration.module.log.service.OperationLogService;
 import com.example.titration.module.user.entity.User;
 import com.example.titration.module.user.mapper.UserMapper;
 import com.example.titration.security.JwtTokenProvider;
@@ -22,6 +23,7 @@ public class AuthService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final OperationLogService operationLogService;
 
     @Value("${jwt.expiration}")
     private long expiration;
@@ -52,6 +54,10 @@ public class AuthService {
 
         user.setLastLoginAt(LocalDateTime.now());
         userMapper.updateById(user);
+
+        // 记录登录日志
+        operationLogService.record(user.getId(), "登录",
+                "用户 " + user.getUsername() + " 登录系统", null);
 
         return LoginResponse.of(
                 token,

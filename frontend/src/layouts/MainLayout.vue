@@ -39,6 +39,7 @@ const adminMenu: MenuItem[] = [
   { label: '用户管理', icon: 'users', path: '/admin/users' },
   { label: '班级管理', icon: 'book-open', path: '/admin/classes' },
   { label: '阈值模板', icon: 'settings', path: '/admin/thresholds' },
+  { label: '操作日志', icon: 'records', path: '/admin/logs' },
 ]
 
 const menuItems = computed<MenuItem[]>(() => {

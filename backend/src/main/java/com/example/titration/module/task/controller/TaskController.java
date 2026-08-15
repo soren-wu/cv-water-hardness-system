@@ -2,6 +2,7 @@ package com.example.titration.module.task.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.titration.common.result.R;
+import com.example.titration.module.log.annotation.OperationLog;
 import com.example.titration.module.task.entity.ExperimentTask;
 import com.example.titration.module.task.entity.TaskAssignment;
 import com.example.titration.module.task.service.TaskService;
@@ -44,6 +45,7 @@ public class TaskController {
     @PostMapping
     @Operation(summary = "创建实验任务")
     @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    @OperationLog(value = "创建任务", content = "创建实验任务")
     public R<ExperimentTask> create(@RequestBody ExperimentTask task) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return R.ok("创建成功", taskService.createTask(task, (Long) auth.getPrincipal()));

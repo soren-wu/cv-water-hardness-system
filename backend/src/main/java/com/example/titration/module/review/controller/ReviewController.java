@@ -1,6 +1,7 @@
 package com.example.titration.module.review.controller;
 
 import com.example.titration.common.result.R;
+import com.example.titration.module.log.annotation.OperationLog;
 import com.example.titration.module.review.entity.Review;
 import com.example.titration.module.review.service.ReviewService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,6 +29,7 @@ public class ReviewController {
     @PostMapping
     @Operation(summary = "提交批阅评分")
     @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    @OperationLog(value = "批阅评分", content = "提交实验批阅")
     public R<Review> create(@RequestBody Review review) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return R.ok("批阅成功", reviewService.createReview(review, (Long) auth.getPrincipal()));
