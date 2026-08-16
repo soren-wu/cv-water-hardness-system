@@ -11,7 +11,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -84,10 +83,12 @@ public class ExperimentController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "删除实验记录")
-    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
     @OperationLog(value = "删除实验", content = "删除实验记录")
     public R<Void> delete(@PathVariable Long id) {
-        experimentService.deleteExperiment(id);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Long userId = (Long) auth.getPrincipal();
+        String role = auth.getAuthorities().toString();
+        experimentService.deleteExperiment(id, userId, role);
         return R.ok("删除成功");
     }
 

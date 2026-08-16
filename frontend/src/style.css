@@ -775,6 +775,7 @@ button {
   color: #0876f5;
   background: #fff;
   font-size: 12px;
+  cursor: pointer;
 }
 
 .review-tag.draft {
@@ -791,6 +792,16 @@ button {
 }
 .detail-button.submit-button:hover {
   background: #0663cf;
+}
+
+.detail-button.delete-button {
+  border-color: #f0a6a6;
+  color: #e03939;
+  background: #fff;
+}
+.detail-button.delete-button:hover {
+  border-color: #e03939;
+  background: #fef0f0;
 }
 
 .table-footer {

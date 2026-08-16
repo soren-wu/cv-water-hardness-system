@@ -69,6 +69,11 @@ export function submitExperimentToTeacher(id: number) {
   )
 }
 
+/** 删除实验记录（学生删除自己的，教师/管理员可删任意） */
+export function deleteExperiment(id: number) {
+  return http.delete<any, { code: number }>(`/api/experiments/${id}`)
+}
+
 export function getExperimentFiles(experimentId: number) {
   return http.get<any, { code: number; data: any[] }>(
     `/api/experiments/${experimentId}/files`

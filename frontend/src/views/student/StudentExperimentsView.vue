@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import AppIcon from '../../components/AppIcon.vue'
 import { useAuthStore } from '../../stores/auth'
-import { getExperimentList, submitExperimentToTeacher, exportExperiments, type ExperimentRecord } from '../../api/experiment'
+import { getExperimentList, submitExperimentToTeacher, exportExperiments, deleteExperiment, type ExperimentRecord } from '../../api/experiment'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -56,6 +56,38 @@ async function submitRecord(record: ExperimentRecord) {
     await loadData()
   } catch (e: any) {
     showToast(e?.message || '提交失败，请重试')
+  }
+}
+
+const deleteTarget = ref<ExperimentRecord | null>(null)
+const showDeleteConfirm = ref(false)
+const deleting = ref(false)
+
+function requestDelete(record: ExperimentRecord) {
+  deleteTarget.value = record
+  showDeleteConfirm.value = true
+}
+
+function cancelDelete() {
+  if (deleting.value) return
+  showDeleteConfirm.value = false
+  deleteTarget.value = null
+}
+
+async function confirmDelete() {
+  const record = deleteTarget.value
+  if (!record) return
+  deleting.value = true
+  try {
+    await deleteExperiment(record.id)
+    ElMessage.success('删除成功')
+    showDeleteConfirm.value = false
+    deleteTarget.value = null
+    await loadData()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '删除失败，请重试')
+  } finally {
+    deleting.value = false
   }
 }
 
@@ -154,14 +186,20 @@ onMounted(() => {
                   {{ submitTagText(record.submitStatus) }}
                 </span>
               </td>
-              <td>
+              <td class="ops-cell">
+                <button class="detail-button" type="button" @click="goDetail(record)">详情</button>
                 <button
                   v-if="record.submitStatus === 'DRAFT'"
                   class="detail-button submit-button"
                   type="button"
                   @click="submitRecord(record)"
                 >提交</button>
-                <button v-else class="detail-button" type="button" @click="goDetail(record)">查看详情</button>
+                <button
+                  v-if="record.submitStatus !== 'REVIEWED'"
+                  class="detail-button delete-button"
+                  type="button"
+                  @click="requestDelete(record)"
+                >删除</button>
               </td>
             </tr>
           </tbody>
@@ -177,6 +215,30 @@ onMounted(() => {
 
     <Transition name="toast">
       <div v-if="toast" class="toast">{{ toast }}</div>
+    </Transition>
+
+    <!-- 删除确认弹窗 -->
+    <Transition name="fade">
+      <div v-if="showDeleteConfirm" class="confirm-mask" @click.self="cancelDelete">
+        <div class="confirm-dialog">
+          <div class="confirm-head">
+            <strong>删除实验记录</strong>
+            <button type="button" class="confirm-close" aria-label="关闭" @click="cancelDelete">
+              <AppIcon name="x" :size="16" />
+            </button>
+          </div>
+          <div class="confirm-body">
+            <p>确定删除「{{ deleteTarget?.experimentName }}」吗？</p>
+            <p class="confirm-warn">删除后该记录及其采样数据、识别结果将无法恢复。</p>
+          </div>
+          <div class="confirm-foot">
+            <button type="button" class="confirm-btn confirm-cancel" @click="cancelDelete">取消</button>
+            <button type="button" class="confirm-btn confirm-danger" :disabled="deleting" @click="confirmDelete">
+              {{ deleting ? '删除中...' : '确认删除' }}
+            </button>
+          </div>
+        </div>
+      </div>
     </Transition>
   </div>
 </template>
@@ -223,5 +285,107 @@ onMounted(() => {
 .btn-export:disabled:hover {
   border-color: #dde1e6;
   color: #5a7a9a;
+}
+.ops-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+/* 删除确认弹窗 */
+.confirm-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.45);
+}
+.confirm-dialog {
+  width: 380px;
+  max-width: calc(100vw - 32px);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+.confirm-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #eef1f5;
+}
+.confirm-head strong {
+  font-size: 15px;
+  color: #1a2332;
+}
+.confirm-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #9aa7b8;
+  cursor: pointer;
+}
+.confirm-close:hover {
+  background: #f1f5f9;
+  color: #475569;
+}
+.confirm-body {
+  padding: 18px 20px;
+}
+.confirm-body p {
+  margin: 0;
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.6;
+}
+.confirm-warn {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #e03939;
+}
+.confirm-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid #eef1f5;
+  background: #fafbfc;
+}
+.confirm-btn {
+  height: 34px;
+  padding: 0 18px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.confirm-cancel {
+  border: 1px solid #dde1e6;
+  background: #fff;
+  color: #5a7a9a;
+}
+.confirm-cancel:hover {
+  border-color: #3b6cb4;
+  color: #3b6cb4;
+}
+.confirm-danger {
+  border: none;
+  background: #e03939;
+  color: #fff;
+}
+.confirm-danger:hover:not(:disabled) {
+  background: #c32f2f;
+}
+.confirm-danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 </style>

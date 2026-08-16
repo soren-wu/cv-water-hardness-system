@@ -113,10 +113,24 @@ public class ExperimentService {
         return experimentMapper.selectById(id);
     }
 
-    public void deleteExperiment(Long id) {
-        if (experimentMapper.deleteById(id) == 0) {
-            throw new BusinessException(404, "实验记录不存在");
+    public void deleteExperiment(Long id, Long userId, String role) {
+        Experiment experiment = getExperimentById(id);
+        // 学生只能删除自己的记录
+        checkAccess(experiment, userId, role);
+        // 学生不能删除已批阅的记录（保护教师评分数据）
+        if (role != null && role.contains("STUDENT") && "REVIEWED".equals(experiment.getSubmitStatus())) {
+            throw new BusinessException(400, "已批阅的记录不能删除");
         }
+        // 级联删除关联数据：采样、事件、文件、批阅
+        colorSampleMapper.delete(new LambdaQueryWrapper<ColorSample>()
+                .eq(ColorSample::getExperimentId, id));
+        stateEventMapper.delete(new LambdaQueryWrapper<StateEvent>()
+                .eq(StateEvent::getExperimentId, id));
+        experimentFileMapper.delete(new LambdaQueryWrapper<ExperimentFile>()
+                .eq(ExperimentFile::getExperimentId, id));
+        reviewMapper.delete(new LambdaQueryWrapper<Review>()
+                .eq(Review::getExperimentId, id));
+        experimentMapper.deleteById(id);
     }
 
     public List<ExperimentFile> getExperimentFiles(Long experimentId, Long userId, String role) {
