@@ -20,6 +20,18 @@ const roi = ref({ x: 46, y: 15, w: 12, h: 4 })
 const roiAction = ref<'move' | 'resize' | null>(null)
 // 视频宽高比（用于预览容器自适应，跟随视频原始比例）
 const videoAspect = ref(16 / 9)
+// 放大预览状态
+const zoomed = ref(false)
+const stageRef = ref<HTMLElement | null>(null)
+const zoomStageRef = ref<HTMLElement | null>(null)
+
+function getActiveStage() {
+  return zoomed.value ? zoomStageRef.value : stageRef.value
+}
+
+function toggleZoom() {
+  zoomed.value = !zoomed.value
+}
 
 let roiStart = { mouseX: 0, mouseY: 0, x: 0, y: 0, w: 0, h: 0 }
 
@@ -51,7 +63,7 @@ function startRoiAdjust(event: MouseEvent, action: 'move' | 'resize') {
 
 function updateRoiByMouse(event: MouseEvent) {
   if (!roiAction.value) return
-  const stage = document.querySelector('.droplet-stage') as HTMLElement | null
+  const stage = getActiveStage()
   if (!stage) return
   const rect = stage.getBoundingClientRect()
   const dx = ((event.clientX - roiStart.mouseX) / rect.width) * 100
@@ -280,11 +292,12 @@ async function saveResult() {
 
     <div class="droplet-body">
       <div class="droplet-preview-card">
-        <div v-if="videoUrl" class="droplet-stage" :style="{ '--video-ratio': videoAspect }">
+        <div v-if="videoUrl" ref="stageRef" class="droplet-stage" :style="{ '--video-ratio': videoAspect }">
           <video ref="previewVideo" :src="videoUrl" controls muted @loadedmetadata="handleVideoMetadata" />
           <div class="droplet-roi-box" :style="roiStyle" @mousedown="startRoiAdjust($event, 'move')">
             <button class="roi-resize-handle" type="button" aria-label="调整检测区大小" @mousedown="startRoiAdjust($event, 'resize')"></button>
           </div>
+          <button class="droplet-zoom-btn" type="button" @click="toggleZoom">放大预览</button>
         </div>
         <div v-else class="upload-placeholder">
           <strong>选择一段滴定视频</strong>
@@ -331,5 +344,18 @@ async function saveResult() {
         </button>
       </div>
     </div>
+
+    <!-- 放大预览层 -->
+    <Teleport to="body">
+      <div v-if="zoomed" class="droplet-zoom-mask" @click.self="toggleZoom">
+        <div class="droplet-zoom-stage" ref="zoomStageRef" :style="{ '--video-ratio': videoAspect }">
+          <video :src="videoUrl" controls muted autoplay />
+          <div class="droplet-roi-box" :style="roiStyle" @mousedown="startRoiAdjust($event, 'move')">
+            <button class="roi-resize-handle" type="button" aria-label="调整检测区大小" @mousedown="startRoiAdjust($event, 'resize')"></button>
+          </div>
+        </div>
+        <button class="droplet-zoom-close" type="button" @click="toggleZoom">缩小返回</button>
+      </div>
+    </Teleport>
   </article>
 </template>
