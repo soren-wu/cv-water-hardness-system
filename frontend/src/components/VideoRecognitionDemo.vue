@@ -33,6 +33,8 @@ const videoDuration = ref(0)
 const playbackStarted = ref(false)
 const roi = ref({ x: 0, y: 0, w: 100, h: 100 })
 const roiAction = ref<'move' | 'resize' | null>(null)
+// 视频宽高比（用于预览容器自适应，跟随视频原始比例）
+const videoAspect = ref(16 / 9)
 const SMOOTH_WINDOW_SECONDS = 2
 let roiStart = {
   mouseX: 0,
@@ -429,6 +431,10 @@ function syncPlaybackState() {
 
 function handleVideoMetadata() {
   syncPlaybackState()
+  const v = previewVideo.value
+  if (v && v.videoWidth && v.videoHeight) {
+    videoAspect.value = v.videoWidth / v.videoHeight
+  }
 }
 
 const videoError = ref('')
@@ -638,7 +644,7 @@ async function saveResult() {
 
     <div class="video-demo-body">
       <div class="video-preview-card">
-        <div v-if="videoUrl" class="uploaded-video-wrap">
+        <div v-if="videoUrl" class="uploaded-video-wrap" :style="{ '--video-ratio': videoAspect }">
           <div class="video-stage">
             <video
               ref="previewVideo"

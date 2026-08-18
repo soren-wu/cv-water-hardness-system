@@ -18,6 +18,8 @@ const previewVideo = ref<HTMLVideoElement | null>(null)
 // ROI（检测区，百分比坐标，默认位于画面中上部滴定管口下方）
 const roi = ref({ x: 46, y: 15, w: 12, h: 4 })
 const roiAction = ref<'move' | 'resize' | null>(null)
+// 视频宽高比（用于预览容器自适应，跟随视频原始比例）
+const videoAspect = ref(16 / 9)
 
 let roiStart = { mouseX: 0, mouseY: 0, x: 0, y: 0, w: 0, h: 0 }
 
@@ -199,10 +201,18 @@ function handleVideoChange(event: Event) {
   if (videoUrl.value) URL.revokeObjectURL(videoUrl.value)
   fileName.value = file.name
   videoUrl.value = URL.createObjectURL(file)
+  videoAspect.value = 16 / 9
   dropletCount.value = 0
   dropletTimes.value = []
   progress.value = 0
   summaryMessage.value = '视频已上传，请框选滴定管口下方的检测区，然后点击「开始计数」。'
+}
+
+function handleVideoMetadata() {
+  const v = previewVideo.value
+  if (v && v.videoWidth && v.videoHeight) {
+    videoAspect.value = v.videoWidth / v.videoHeight
+  }
 }
 
 function formatTime(value: number) {
@@ -270,8 +280,8 @@ async function saveResult() {
 
     <div class="droplet-body">
       <div class="droplet-preview-card">
-        <div v-if="videoUrl" class="droplet-stage">
-          <video ref="previewVideo" :src="videoUrl" controls muted />
+        <div v-if="videoUrl" class="droplet-stage" :style="{ '--video-ratio': videoAspect }">
+          <video ref="previewVideo" :src="videoUrl" controls muted @loadedmetadata="handleVideoMetadata" />
           <div class="droplet-roi-box" :style="roiStyle" @mousedown="startRoiAdjust($event, 'move')">
             <button class="roi-resize-handle" type="button" aria-label="调整检测区大小" @mousedown="startRoiAdjust($event, 'resize')"></button>
           </div>
