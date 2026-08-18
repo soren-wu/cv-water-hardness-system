@@ -28,6 +28,9 @@ detector-client/*.spec
 # 存储目录
 storage/
 
+# H2 文件数据库数据目录
+backend/data/
+
 # zip
 *.zip
 

@@ -5,10 +5,10 @@ spring:
   application:
     name: titration-backend
 
-  # H2 内存数据库（开发环境，无需安装 MySQL）
+  # H2 文件数据库（数据持久化到硬盘，重启不丢，无需安装 MySQL）
   datasource:
     driver-class-name: org.h2.Driver
-    url: jdbc:h2:mem:titration_detection;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    url: jdbc:h2:file:./data/titration_detection;MODE=MySQL;DB_CLOSE_ON_EXIT=FALSE
     username: sa
     password:
 
