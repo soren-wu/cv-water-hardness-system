@@ -2,6 +2,7 @@
 import { computed, ref, onMounted } from 'vue'
 import AppIcon from '../../components/AppIcon.vue'
 import CameraRecognitionDemo from '../../components/CameraRecognitionDemo.vue'
+import DropletCounterDemo from '../../components/DropletCounterDemo.vue'
 import ImageRecognitionDemo from '../../components/ImageRecognitionDemo.vue'
 import VideoRecognitionDemo from '../../components/VideoRecognitionDemo.vue'
 import { useAuthStore } from '../../stores/auth'
@@ -66,6 +67,7 @@ onMounted(() => {
     <ImageRecognitionDemo />
     <VideoRecognitionDemo />
     <CameraRecognitionDemo />
+    <DropletCounterDemo @saved="loadData" />
   </div>
 </template>
 
