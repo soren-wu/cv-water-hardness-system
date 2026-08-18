@@ -77,8 +77,8 @@ function updateRoiByMouse(event: MouseEvent) {
   } else {
     roi.value = {
       ...roi.value,
-      w: clamp(roiStart.w + dx, 4, 100 - roiStart.x),
-      h: clamp(roiStart.h + dy, 2, 100 - roiStart.y),
+      w: clamp(roiStart.w + dx, 2, 100 - roiStart.x),
+      h: clamp(roiStart.h + dy, 1, 100 - roiStart.y),
     }
   }
 }

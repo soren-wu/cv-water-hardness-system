@@ -307,8 +307,8 @@ function updateRoiByMouse(event: MouseEvent) {
   } else {
     roi.value = {
       ...roi.value,
-      w: clamp(roiStart.w + deltaX, 12, 100 - roiStart.x),
-      h: clamp(roiStart.h + deltaY, 12, 100 - roiStart.y),
+      w: clamp(roiStart.w + deltaX, 4, 100 - roiStart.x),
+      h: clamp(roiStart.h + deltaY, 4, 100 - roiStart.y),
     }
   }
   // 拖拽过程中实时分析（防抖）
